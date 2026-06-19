@@ -1,0 +1,137 @@
+@import "tailwindcss";
+
+@theme {
+  --color-emerald-50: #f0fdf4;
+  --color-emerald-100: #dcfce7;
+  --color-emerald-200: #95D5B2;
+  --color-emerald-300: #74cda0;
+  --color-emerald-400: #52B788;
+  --color-emerald-500: #409a72;
+  --color-emerald-600: #2c7c59;
+  --color-emerald-700: #2D6A4F; /* Clean Minimalism Primary green */
+  --color-emerald-800: #1B4332; /* Clean Minimalism Deep Forest Green */
+  --color-emerald-900: #0f2b20;
+  
+  --color-slate-50: #F8FAF8;   /* Clean Minimalism background */
+  --color-slate-800: #1B4332;  /* Clean Minimalism main text */
+  --color-slate-900: #112d21;  /* Deeper text */
+  --color-slate-200: #E2E8F0;  /* Smooth borders */
+  
+  --font-sans: "Plus Jakarta Sans", "Helvetica Neue", Arial, sans-serif;
+  --font-mono: "JetBrains Mono", monospace;
+}
+
+/* -------------------------------------------------------------
+   AgriMap Lite Custom Styles
+   ------------------------------------------------------------- */
+
+/* Google Fonts Import for superior modern typography */
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600&display=swap');
+
+/* Apply custom typography as the base default */
+:root {
+  font-family: 'Plus Jakarta Sans', ui-sans-serif, system-ui, sans-serif;
+}
+
+.font-sans {
+  font-family: 'Plus Jakarta Sans', sans-serif;
+}
+
+.font-mono {
+  font-family: 'JetBrains Mono', monospace;
+}
+
+/* Interactive Leaflet Map Sizing & Presentation */
+#map {
+  height: 520px;
+  width: 100%;
+  z-index: 10;
+  transition: all 0.3s ease-in-out;
+}
+
+@media (max-width: 1024px) {
+  #map {
+    height: 420px;
+  }
+}
+
+@media (max-width: 640px) {
+  #map {
+    height: 300px;
+  }
+}
+
+/* Beautiful custom Leaflet popup design of UI */
+.custom-leaflet-popup .leaflet-popup-content-wrapper {
+  background: #ffffff;
+  color: #1e293b;
+  border-radius: 12px;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+  border: 1px solid #e2e8f0;
+  padding: 6px;
+}
+
+.custom-leaflet-popup .leaflet-popup-content {
+  margin: 8px 10px;
+}
+
+.custom-leaflet-popup .leaflet-popup-tip {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  box-shadow: none;
+}
+
+/* Style categories */
+.ph-indicator-masam {
+  animation: pulse-red 2s infinite;
+}
+
+@keyframes pulse-red {
+  0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); }
+  70% { box-shadow: 0 0 0 8px rgba(239, 68, 68, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+}
+
+/* Helper utilities for truncate */
+.truncate-3-lines {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;  
+  overflow: hidden;
+}
+
+.truncate-2-lines {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;  
+  overflow: hidden;
+}
+
+/* Soft Scrollbar Engine */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f1f5f9;
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #10b981;
+}
+
+/* Extra small text */
+.text-xxs {
+  font-size: 0.65rem;
+}
+
+.text-xxs-plus {
+  font-size: 0.75rem;
+}
