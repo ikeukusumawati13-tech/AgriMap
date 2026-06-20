@@ -55,7 +55,10 @@ export function addSample(sample) {
         longitude: parseFloat(sample.longitude),
         ph: parseFloat(sample.ph),
         timestamp: sample.timestamp || Date.now(),
-        catatan: sample.catatan || ''
+        catatan: sample.catatan || '',
+        fotoLokasi: sample.fotoLokasi || '',
+        fotoTanaman: sample.fotoTanaman || '',
+        fotoTanah: sample.fotoTanah || ''
       };
 
       const request = store.add(cleanedSample);
@@ -121,7 +124,10 @@ export function updateSample(id, sample) {
         longitude: parseFloat(sample.longitude),
         ph: parseFloat(sample.ph),
         timestamp: sample.timestamp || Date.now(),
-        catatan: sample.catatan || ''
+        catatan: sample.catatan || '',
+        fotoLokasi: sample.fotoLokasi || '',
+        fotoTanaman: sample.fotoTanaman || '',
+        fotoTanah: sample.fotoTanah || ''
       };
 
       const request = store.put(cleanedSample);
@@ -158,6 +164,31 @@ export function deleteSample(id) {
 
       request.onerror = (event) => {
         reject(`Gagal menghapus sampel: ${event.target.error?.message}`);
+      };
+    } catch (err) {
+      reject(err);
+    }
+  });
+}
+
+/**
+ * Clears all soil samples from the database.
+ * @returns {Promise<void>}
+ */
+export function clearAllSamples() {
+  return new Promise(async (resolve, reject) => {
+    try {
+      const db = await openDatabase();
+      const transaction = db.transaction([STORE_NAME], 'readwrite');
+      const store = transaction.objectStore(STORE_NAME);
+      const request = store.clear();
+
+      request.onsuccess = () => {
+        resolve();
+      };
+
+      request.onerror = (event) => {
+        reject(`Gagal membersihkan database: ${event.target.error?.message}`);
       };
     } catch (err) {
       reject(err);

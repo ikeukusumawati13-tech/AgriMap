@@ -3,7 +3,7 @@
  * Caches application scripts, stylesheets, and maps infrastructure.
  */
 
-const CACHE_NAME = 'agrimap-lite-cache-v1';
+const CACHE_NAME = 'agrimap-lite-cache-v2';
 
 // Assets to cache immediately on SW install
 const ASSETS_TO_CACHE = [

@@ -19,6 +19,9 @@
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
 
+    <!-- jsPDF Library for generating research reports -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
     <!-- Custom styled resources -->
     <link rel="stylesheet" href="/style.css" />
   </head>
@@ -64,6 +67,71 @@
       
       <!-- Interactive notification alerts toast -->
       <div id="toast-container" class="fixed bottom-5 right-5 z-50 flex flex-col gap-2 max-w-sm"></div>
+
+      <!-- ROW 0.5: Research Metadata Panel -->
+      <section id="panel-research-metadata" class="bg-white rounded-3xl border border-slate-200 shadow-sm p-5 transition hover:border-emerald-200 flex flex-col gap-4">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between border-b pb-3 border-slate-100 gap-2">
+          <div class="flex items-center gap-2">
+            <div class="p-1.5 bg-emerald-50 rounded-lg text-emerald-700">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+              </svg>
+            </div>
+            <div>
+              <h2 class="text-base font-extrabold text-slate-900 border-none m-0">Informasi & Metadata Penelitian Lahan</h2>
+              <p class="text-[10px] text-slate-400">Kelolasian identitas riset, pendataan kepenyuluhan, atau laporan sekolah secara luring.</p>
+            </div>
+          </div>
+          <div class="flex items-center gap-1.5">
+            <span class="w-2 h-2 rounded-full bg-emerald-500 animate-ping"></span>
+            <span class="text-[10px] uppercase font-bold tracking-widest text-emerald-600 bg-emerald-50 px-2 py-1 rounded-md">Auto-Saved</span>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          <!-- Field 1: Judul Penelitian -->
+          <div class="flex flex-col gap-1">
+            <label for="meta-judul" class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Judul Penelitian / Laporan</label>
+            <input type="text" id="meta-judul" placeholder="Contoh: Analisis Spasial pH Tanah Cabai Sleman" class="w-full text-xs border border-slate-200 bg-slate-50/50 hover:bg-slate-50/20 focus:bg-white rounded-xl px-3.5 py-2 outline-none focus:ring-1 focus:ring-emerald-500 transition" />
+          </div>
+
+          <!-- Field 2: Nama Peneliti -->
+          <div class="flex flex-col gap-1">
+            <label for="meta-peneliti" class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Nama Peneliti / Guru / Penyuluh</label>
+            <input type="text" id="meta-peneliti" placeholder="Contoh: Dr. Ir. Heru Prasetyo, M.P." class="w-full text-xs border border-slate-200 bg-slate-50/50 hover:bg-slate-50/20 focus:bg-white rounded-xl px-3.5 py-2 outline-none focus:ring-1 focus:ring-emerald-500 transition" />
+          </div>
+
+          <!-- Field 3: Instansi -->
+          <div class="flex flex-col gap-1">
+            <label for="meta-instansi" class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Instansi / Sekolah / Kelompok Tani</label>
+            <input type="text" id="meta-instansi" placeholder="Contoh: Universitas Gadjah Mada / BPP Sleman" class="w-full text-xs border border-slate-200 bg-slate-50/50 hover:bg-slate-50/20 focus:bg-white rounded-xl px-3.5 py-2 outline-none focus:ring-1 focus:ring-emerald-500 transition" />
+          </div>
+
+          <!-- Field 4: Lokasi Penelitian -->
+          <div class="flex flex-col gap-1">
+            <label for="meta-lokasi" class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Lokasi Penelitian Spasial</label>
+            <input type="text" id="meta-lokasi" placeholder="Contoh: Pakem & Ngemplak, Sleman" class="w-full text-xs border border-slate-200 bg-slate-50/50 hover:bg-slate-50/20 focus:bg-white rounded-xl px-3.5 py-2 outline-none focus:ring-1 focus:ring-emerald-500 transition" />
+          </div>
+
+          <!-- Field 5: Komoditas Utama -->
+          <div class="flex flex-col gap-1">
+            <label for="meta-komoditas" class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Komoditas Lahan Utama</label>
+            <input type="text" id="meta-komoditas" placeholder="Contoh: Cabe Rawit & Mentimun Hijau" class="w-full text-xs border border-slate-200 bg-slate-50/50 hover:bg-slate-50/20 focus:bg-white rounded-xl px-3.5 py-2 outline-none focus:ring-1 focus:ring-emerald-500 transition" />
+          </div>
+
+          <!-- Field 6: Tahun Penelitian -->
+          <div class="flex flex-col gap-1">
+            <label for="meta-tahun" class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Tahun Penelitian</label>
+            <input type="number" id="meta-tahun" min="2000" max="2100" class="w-full text-xs border border-slate-200 bg-slate-50/50 hover:bg-slate-50/20 focus:bg-white rounded-xl px-3.5 py-2 outline-none focus:ring-1 focus:ring-emerald-500 transition" />
+          </div>
+        </div>
+
+        <div class="flex justify-end gap-2 border-t pt-3 border-slate-100">
+          <button id="btn-save-metadata" class="text-xs font-bold bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white px-4 py-2 rounded-xl transition cursor-pointer flex items-center gap-1.5 shadow-sm">
+            💾 Simpan Metadata
+          </button>
+        </div>
+      </section>
 
       <!-- ROW 1: Statistical Summary Dashboard Cards -->
       <section class="grid grid-cols-2 lg:grid-cols-4 gap-4" id="stats-dashboard">
@@ -132,7 +200,7 @@
       </section>
 
       <!-- ROW 1.5: Spatial Analysis Dashboard (IDW Spatial Engine) -->
-      <section class="grid grid-cols-2 lg:grid-cols-4 gap-4" id="spatial-dashboard">
+      <section class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4" id="spatial-dashboard">
         <!-- Card 1: Chili highly suitable area -->
         <div class="bg-gradient-to-br from-emerald-600 to-emerald-800 text-white p-4.5 rounded-2xl border border-emerald-700 shadow-sm flex items-center gap-4 transition hover:shadow-md">
           <div class="p-3 bg-white/10 rounded-xl text-white text-xl">
@@ -169,7 +237,19 @@
           </div>
         </div>
 
-        <!-- Card 4: Percentage unsuitable -->
+        <!-- Card 4: Kebutuhan Dolomit Rata-rata -->
+        <div class="bg-white p-4.5 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-4 transition hover:shadow-md">
+          <div class="p-3 bg-amber-50 rounded-xl text-amber-600 text-xl font-bold">
+            🪨
+          </div>
+          <div>
+            <span class="text-xs text-slate-500 font-semibold uppercase tracking-wide">Dolomit Rata-rata</span>
+            <h3 class="text-2xl font-black text-slate-900 border-none m-0 pt-0.5 leading-none" id="spatial-dolomite-avg">-</h3>
+            <span class="text-[10px] text-slate-400 block mt-0.5" id="spatial-dolomite-range">Min: - / Max: - t/Ha</span>
+          </div>
+        </div>
+
+        <!-- Card 5: Percentage unsuitable -->
         <div class="bg-white p-4.5 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-4 transition hover:shadow-md">
           <div class="p-3 bg-rose-50 rounded-xl text-rose-600 text-xl font-bold">
             ✗
@@ -280,6 +360,65 @@
                 </div>
               </div>
 
+              <!-- Field 3.5: Foto Titik Sampel (Lokasi, Tanaman, Tanah) -->
+              <div class="flex flex-col gap-1.5 bg-slate-50 p-3 rounded-2xl border border-slate-200/60">
+                <span class="text-xs font-bold text-slate-600 uppercase tracking-wider">Dokumentasi Foto Lapangan</span>
+                <div class="grid grid-cols-3 gap-2">
+                  
+                  <!-- Foto Lokasi -->
+                  <div class="flex flex-col items-center gap-1">
+                    <label class="text-[9px] font-bold text-slate-500 uppercase text-center block leading-tight">Foto Lokasi</label>
+                    <div id="preview-lokasi-container" class="w-full aspect-[4/3] bg-white border border-dashed border-slate-300 rounded-xl flex flex-col items-center justify-center p-1 cursor-pointer hover:bg-slate-100 transition relative overflow-hidden group">
+                      <!-- Active preview image -->
+                      <img id="img-preview-lokasi" class="hidden w-full h-full object-cover rounded-lg" referrerPolicy="no-referrer" />
+                      <!-- Fallback placeholder when empty -->
+                      <div id="placeholder-lokasi" class="flex flex-col items-center justify-center text-center text-slate-400 p-0.5">
+                        <span class="text-base">📍</span>
+                        <span class="text-[8px] font-semibold">Pilih/Ambil</span>
+                      </div>
+                      <input type="file" id="input-foto-lokasi" accept="image/*" class="hidden" />
+                    </div>
+                    <!-- Clear Button -->
+                    <button type="button" id="btn-clear-lokasi" class="hidden text-[8px] font-bold text-rose-600 bg-rose-50 hover:bg-rose-100 px-1.5 py-0.5 rounded cursor-pointer transition">
+                      Hapus
+                    </button>
+                  </div>
+
+                  <!-- Foto Tanaman -->
+                  <div class="flex flex-col items-center gap-1">
+                    <label class="text-[9px] font-bold text-slate-500 uppercase text-center block leading-tight">Foto Tanaman</label>
+                    <div id="preview-tanaman-container" class="w-full aspect-[4/3] bg-white border border-dashed border-slate-300 rounded-xl flex flex-col items-center justify-center p-1 cursor-pointer hover:bg-slate-100 transition relative overflow-hidden group">
+                      <img id="img-preview-tanaman" class="hidden w-full h-full object-cover rounded-lg" referrerPolicy="no-referrer" />
+                      <div id="placeholder-tanaman" class="flex flex-col items-center justify-center text-center text-slate-400 p-0.5">
+                        <span class="text-base">🌱</span>
+                        <span class="text-[8px] font-semibold">Pilih/Ambil</span>
+                      </div>
+                      <input type="file" id="input-foto-tanaman" accept="image/*" class="hidden" />
+                    </div>
+                    <button type="button" id="btn-clear-tanaman" class="hidden text-[8px] font-bold text-rose-600 bg-rose-50 hover:bg-rose-100 px-1.5 py-0.5 rounded cursor-pointer transition">
+                      Hapus
+                    </button>
+                  </div>
+
+                  <!-- Foto Tanah -->
+                  <div class="flex flex-col items-center gap-1">
+                    <label class="text-[9px] font-bold text-slate-500 uppercase text-center block leading-tight">Foto Tanah</label>
+                    <div id="preview-tanah-container" class="w-full aspect-[4/3] bg-white border border-dashed border-slate-300 rounded-xl flex flex-col items-center justify-center p-1 cursor-pointer hover:bg-slate-100 transition relative overflow-hidden group">
+                      <img id="img-preview-tanah" class="hidden w-full h-full object-cover rounded-lg" referrerPolicy="no-referrer" />
+                      <div id="placeholder-tanah" class="flex flex-col items-center justify-center text-center text-slate-400 p-0.5">
+                        <span class="text-base">🪨</span>
+                        <span class="text-[8px] font-semibold">Pilih/Ambil</span>
+                      </div>
+                      <input type="file" id="input-foto-tanah" accept="image/*" class="hidden" />
+                    </div>
+                    <button type="button" id="btn-clear-tanah" class="hidden text-[8px] font-bold text-rose-600 bg-rose-50 hover:bg-rose-100 px-1.5 py-0.5 rounded cursor-pointer transition">
+                      Hapus
+                    </button>
+                  </div>
+
+                </div>
+              </div>
+
               <!-- Field 4: Optional researcher notes -->
               <div class="flex flex-col gap-1.5">
                 <label for="sample-catatan" class="text-xs font-bold text-slate-600 uppercase tracking-wider">Catatan Lahan / Rekomendasi (Opsional)</label>
@@ -353,6 +492,50 @@
             <div class="relative">
               <div id="map"></div>
               
+              <!-- PRINT-READY CARTOGRAPHIC OVERLAYS (Hidden by default) -->
+              <div id="print-map-overlay" class="hidden absolute inset-0 bg-white/5 border-[10px] border-double border-slate-800 pointer-events-none z-[410] flex flex-col justify-between p-4 mix-blend-normal">
+                <!-- Upper Cartographic Header Box (Clean white opaque box) -->
+                <div class="bg-white/95 backdrop-blur-xs border-2 border-slate-800 p-3.5 flex flex-col gap-1.5 w-72 pointer-events-auto shadow-xl self-end">
+                  <h4 class="text-xs font-black text-slate-900 border-none m-0 uppercase tracking-wider leading-tight">PETA PENELITIAN KESESUAIAN PH TANAH</h4>
+                  <p class="text-[9px] text-slate-500 font-semibold leading-none">Layout Kartografi AgriMap Lite</p>
+                  <table class="text-[8.5px] text-slate-700 mt-2 border-t border-slate-300 pt-1.5">
+                    <tr class="h-4">
+                      <td class="font-bold pr-2">Lokasi Lahan:</td>
+                      <td id="print-map-location" class="font-semibold text-slate-900">Area Budidaya Hortikultura</td>
+                    </tr>
+                    <tr class="h-4">
+                      <td class="font-bold">Tanggal:</td>
+                      <td id="print-map-date" class="font-semibold text-slate-900">-</td>
+                    </tr>
+                    <tr class="h-4">
+                      <td class="font-bold">Sistem GIS:</td>
+                      <td class="font-semibold text-slate-900">IDW Interp. (WGS 84)</td>
+                    </tr>
+                  </table>
+                </div>
+
+                <!-- Lower Cartographic Box: Compass & Scale Indicators -->
+                <div class="flex justify-between items-end w-full">
+                  <!-- Compass & Scale block -->
+                  <div class="bg-white/95 backdrop-blur-xs border-2 border-slate-800 p-2.5 flex items-center gap-3.5 pointer-events-auto shadow-xl">
+                    <!-- Compass Arrow SVG -->
+                    <div class="flex flex-col items-center">
+                      <svg class="w-6 h-6 text-slate-900 shrink-0" fill="currentColor" viewBox="0 0 24 24">
+                        <polygon points="12,2 5,20 12,16 19,20" />
+                        <text x="10" y="24" font-size="7" font-weight="black" fill="currentColor">U</text>
+                      </svg>
+                      <span class="text-[7px] font-black text-slate-900 leading-none">UTARA</span>
+                    </div>
+                    <div class="border-l border-slate-300 h-9 shrink-0"></div>
+                    <div class="flex flex-col select-none">
+                      <span class="text-[7px] text-zinc-400 font-extrabold uppercase tracking-widest leading-none">Skala Peta</span>
+                      <span class="text-[9px] font-black text-slate-900 mt-0.5" id="print-map-scale-text">Dinamis (Skala Ganda)</span>
+                      <span class="text-[6px] text-slate-500 uppercase font-bold leading-none mt-0.5">Sesuai Resolusi IDW</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              
               <!-- Custom GIS Map Overlay Layer Control & Dynamic Legend Panel -->
               <div class="absolute bottom-4 left-4 z-[400] bg-white/95 backdrop-blur-md p-3.5 rounded-2xl shadow-lg border border-slate-200 text-[10px] max-w-[230px] flex flex-col gap-3">
                 
@@ -368,6 +551,16 @@
                   <label class="flex items-center gap-2 cursor-pointer font-bold text-slate-800 hover:text-emerald-700 select-none">
                     <input type="checkbox" id="layer-control-heatmap" class="w-3.5 h-3.5 accent-emerald-600 rounded border-slate-350 focus:ring-emerald-500" />
                     <span>Heatmap pH (IDW)</span>
+                  </label>
+
+                  <label class="flex items-center gap-2 cursor-pointer font-bold text-indigo-950 hover:text-indigo-800 select-none">
+                    <input type="checkbox" id="layer-control-kriging" class="w-3.5 h-3.5 accent-indigo-600 rounded border-slate-350 focus:ring-indigo-505" />
+                    <span class="text-indigo-900">🧬 Kriging Estimasi pH</span>
+                  </label>
+
+                  <label class="flex items-center gap-2 cursor-pointer font-bold text-teal-950 hover:text-teal-800 select-none">
+                    <input type="checkbox" id="layer-control-kriging-err" class="w-3.5 h-3.5 accent-teal-600 rounded border-slate-350 focus:ring-teal-505" />
+                    <span class="text-teal-900">🛡️ Kriging Deviasi Error</span>
                   </label>
                   
                   <label class="flex items-center gap-2 cursor-pointer font-bold text-slate-800 hover:text-emerald-700 select-none">
@@ -401,6 +594,34 @@
                       <span class="w-3 h-3 rounded-md inline-block bg-[#3b82f6] border border-white shadow"></span>
                       <span class="text-slate-800 font-semibold text-xxs">Basa (> 7.5)</span>
                     </div>
+                  </div>
+                </div>
+
+                <!-- Section C: Print Mode Toggle -->
+                <div class="border-t border-slate-100 pt-2 flex flex-col gap-1.5">
+                  <span class="font-bold text-slate-700 uppercase tracking-widest">TATA KARTOGRAFI</span>
+                  <label class="flex items-center gap-2 cursor-pointer font-bold text-slate-850 hover:text-indigo-700 select-none">
+                    <input type="checkbox" id="layer-control-print-mode" class="w-3.5 h-3.5 accent-indigo-600 rounded border-slate-350 focus:ring-indigo-500" />
+                    <span class="text-indigo-800">🖨️ Peta Siap Cetak</span>
+                  </label>
+                </div>
+
+                <!-- Section D: Ekspor Peta PNG -->
+                <div class="border-t border-slate-100 pt-2 flex flex-col gap-1.5">
+                  <span class="font-bold text-slate-700 uppercase tracking-widest">🗺️ EKSPOR PETA PNG</span>
+                  <div class="grid grid-cols-1 gap-1.5 mt-1">
+                    <button id="btn-export-map-sebaran" title="Unduh Peta Sebaran IDW (.png)" class="w-full text-left text-xxs font-bold text-slate-700 bg-slate-50 hover:bg-slate-100 border border-slate-200 px-2 py-1.5 rounded-lg transition-all cursor-pointer flex items-center gap-1 shadow-3xs">
+                      🌈 Sebaran pH (.png)
+                    </button>
+                    <button id="btn-export-map-cabai" title="Unduh Peta Zonasi Cabai (.png)" class="w-full text-left text-xxs font-bold text-emerald-800 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 px-2 py-1.5 rounded-lg transition-all cursor-pointer flex items-center gap-1 shadow-3xs">
+                      🌶️ Zona Cabai (.png)
+                    </button>
+                    <button id="btn-export-map-mentimun" title="Unduh Peta Zonasi Mentimun (.png)" class="w-full text-left text-xxs font-bold text-teal-800 bg-teal-50 hover:bg-teal-100 border border-teal-200 px-2 py-1.5 rounded-lg transition-all cursor-pointer flex items-center gap-1 shadow-3xs">
+                      🥒 Zona Mentimun (.png)
+                    </button>
+                    <button id="btn-export-map-kriging" title="Unduh Peta Analisis Kriging (.png)" class="w-full text-left text-xxs font-bold text-indigo-800 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 px-2 py-1.5 rounded-lg transition-all cursor-pointer flex items-center gap-1 shadow-3xs">
+                      🧬 Peta Kriging (.png)
+                    </button>
                   </div>
                 </div>
 
@@ -447,6 +668,128 @@
         </div>
       </section>
 
+      <!-- ROW 3.5: Geostatistical Diagnostic & Variogram Fitting Panel -->
+      <section class="grid grid-cols-1 lg:grid-cols-12 gap-6" id="geostats-panel">
+        <!-- SVG Variogram Curve Chart (Col Span 5) -->
+        <div class="lg:col-span-5 bg-white rounded-3xl border border-slate-200 p-5 flex flex-col gap-4 shadow-xs">
+          <div>
+            <h3 class="text-sm font-black text-slate-900 uppercase tracking-widest border-none p-0 flex items-center gap-1.5">
+              📈 Pembedahan Semivariogram Teoretis
+            </h3>
+            <p class="text-[10px] text-slate-400 mt-1">Estimasi jarak spasial (Lag) vs Semivariasi &amp; kurva fitting model Spherical</p>
+          </div>
+
+          <!-- Pure Vector SVG Plotting Arena -->
+          <div class="relative bg-slate-50 rounded-2xl border border-slate-100 p-3 flex flex-col items-center justify-center h-52">
+            <svg id="svg-variogram-chart" class="w-full h-full max-h-40" viewBox="0 0 400 180">
+              <!-- Grid Lines and Axes -->
+              <line x1="40" y1="20" x2="40" y2="150" stroke="#cbd5e1" stroke-width="1.5" />
+              <line x1="40" y1="150" x2="380" y2="150" stroke="#cbd5e1" stroke-width="1.5" />
+              
+              <!-- X, Y Axes labels -->
+              <text x="12" y="85" font-size="8" font-weight="bold" fill="#64748b" transform="rotate(-90,12,85)" text-anchor="middle">Semivariansi (γ)</text>
+              <text x="210" y="172" font-size="8" font-weight="bold" fill="#64748b" text-anchor="middle">Jarak Spasial (Lag h dalam meter)</text>
+
+              <!-- Dynamic Content Root (Circles and theoretical path will go here) -->
+              <g id="svg-variogram-content">
+                <!-- Fallback empty prompt -->
+                <text x="210" y="85" font-size="9" font-weight="bold" fill="#94a3b8" text-anchor="middle" class="animate-pulse">Rekam sampel untuk membangun variogram...</text>
+              </g>
+            </svg>
+            <!-- Dynamic Chart Legend -->
+            <div class="flex gap-4 text-[9px] font-bold text-slate-500 mt-2">
+              <span class="flex items-center gap-1">
+                <span class="w-2.5 h-2.5 rounded-full bg-indigo-600 inline-block shadow-sm"></span> Experimental Bin
+              </span>
+              <span class="flex items-center gap-1">
+                <span class="w-4 h-0.5 bg-rose-500 inline-block"></span> Model Fitting (Spherical)
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Variogram Fitted Parameters Panel (Col Span 3) -->
+        <div class="lg:col-span-3 bg-white rounded-3xl border border-slate-200 p-5 flex flex-col gap-4 shadow-xs justify-between">
+          <div>
+            <h3 class="text-sm font-black text-slate-900 uppercase tracking-widest border-none p-0">
+              🧩 Indikasi Model Geostatistik
+            </h3>
+            <p class="text-[10px] text-slate-400 mt-1">Koefisien spasial hasil analisis variansi kriging</p>
+          </div>
+
+          <div class="flex flex-col gap-3">
+            <!-- Nugget -->
+            <div class="flex items-center justify-between border-b border-slate-100 pb-2">
+              <div>
+                <span class="text-[9px] text-slate-400 block font-bold uppercase tracking-wider">Nugget (C₀)</span>
+                <span class="text-[10px] text-slate-700 font-medium">Variansi mikro acak</span>
+              </div>
+              <span class="text-xs font-black text-indigo-900 font-mono" id="val-nugget">-</span>
+            </div>
+
+            <!-- Sill -->
+            <div class="flex items-center justify-between border-b border-slate-100 pb-2">
+              <div>
+                <span class="text-[9px] text-slate-400 block font-bold uppercase tracking-wider">Sill (C₀ + C)</span>
+                <span class="text-[10px] text-slate-700 font-medium">Batas maksimum variasi</span>
+              </div>
+              <span class="text-xs font-black text-indigo-900 font-mono" id="val-sill">-</span>
+            </div>
+
+            <!-- Range -->
+            <div class="flex items-center justify-between border-b border-slate-100 pb-2">
+              <div>
+                <span class="text-[9px] text-slate-400 block font-bold uppercase tracking-wider">Range Spasial (a)</span>
+                <span class="text-[10px] text-slate-700 font-medium">Radius autokorelasi</span>
+              </div>
+              <span class="text-xs font-black text-indigo-900 font-mono" id="val-range">-</span>
+            </div>
+
+            <!-- LOOCV RMSE Banner -->
+            <div class="bg-indigo-50/50 border border-indigo-100 rounded-xl p-3 flex flex-col gap-1">
+              <span class="text-[9px] text-indigo-700 font-black uppercase tracking-wider">LOOCV Prediction Error</span>
+              <div class="flex justify-between items-baseline mt-0.5">
+                <span class="text-sm font-bold text-slate-800">Root MSE (RMSE):</span>
+                <span class="text-sm font-black text-indigo-800 font-mono" id="val-rmse">-</span>
+              </div>
+              <!-- Mini indicator bar -->
+              <div class="w-full h-1 bg-slate-200 rounded-full mt-1 overflow-hidden flex">
+                <div id="rmse-status-bar" class="w-0 h-full bg-emerald-500 transition-all duration-500"></div>
+              </div>
+              <span class="text-[8px] text-slate-500 font-bold" id="rmse-quality-text">Keandalan spasial: Menunggu kalkulasi...</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Cross Validation LOOCV Detail Table (Col Span 4) -->
+        <div class="lg:col-span-4 bg-white rounded-3xl border border-slate-200 p-5 flex flex-col gap-3 shadow-xs">
+          <div>
+            <h3 class="text-sm font-black text-slate-900 uppercase tracking-widest border-none p-0">
+              📊 Cross-Validation (LOOCV Log)
+            </h3>
+            <p class="text-[10px] text-slate-400 mt-1">Uji silang prediktor kriging untuk setiap titik sampel</p>
+          </div>
+
+          <div class="overflow-y-auto max-h-40 border border-slate-100 rounded-2xl">
+            <table class="w-full text-left border-collapse text-[10px]">
+              <thead>
+                <tr class="bg-slate-50 text-slate-500 border-b border-slate-100 font-bold">
+                  <th class="p-2">Sampel</th>
+                  <th class="p-2 text-center">Aktual</th>
+                  <th class="p-2 text-center">Kriging</th>
+                  <th class="p-2 text-center">Error (Dev)</th>
+                </tr>
+              </thead>
+              <tbody id="loocv-details-body">
+                <tr>
+                  <td colspan="4" class="p-4 text-center text-slate-400 italic font-semibold">Tebaran titik sampel minim (3 titik) dibutuhkan untuk verifikasi LOOCV.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
       <!-- ROW 4: Comprehensive Inventory Soil Samples Table -->
       <section class="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden flex flex-col">
         <!-- Table header search actions -->
@@ -471,18 +814,71 @@
             </select>
 
             <!-- Export / Clear Controls -->
-            <div class="flex items-center gap-1 border-l pl-2 border-slate-200">
-              <button id="btn-export" title="Ekspor data ke CSV" class="text-xs font-semibold hover:bg-emerald-50 text-emerald-700 bg-white border border-slate-200 hover:border-emerald-200 px-3 py-2 rounded-xl transition cursor-pointer flex items-center gap-1 shadow-xs">
-                📥 Ekspor CSV
-              </button>
-              
-              <!-- File Input for import -->
-              <label for="input-import" class="text-xs font-semibold hover:bg-slate-100 text-slate-700 bg-white border border-slate-200 px-3 py-2 rounded-xl transition cursor-pointer flex items-center gap-1 shadow-xs">
-                📤 Impor data
+            <div class="flex flex-wrap items-center gap-1.5 border-l pl-2 border-slate-200">
+              <!-- Standard JSON (Hidden for general users, accessible by developers) -->
+              <label for="input-import" title="Impor JSON (Internal Dev)" class="hidden">
+                📤 Impor JSON
                 <input type="file" id="input-import" accept=".json" class="hidden" />
               </label>
 
-              <button id="btn-purge" title="Hapus semua sampel" class="text-xs font-semibold text-rose-600 hover:bg-rose-50 border border-slate-200 hover:border-rose-100 bg-white px-3 py-2 rounded-xl transition cursor-pointer shadow-xs">
+              <!-- Excel Template Download Button -->
+              <button id="btn-download-template" title="Unduh Template Excel untuk Pengisian Data" class="text-xs font-bold bg-sky-50 hover:bg-sky-100 text-sky-800 border border-sky-200 px-2.5 py-2 rounded-xl transition cursor-pointer flex items-center gap-1 shadow-xs">
+                📥 Unduh Template Excel
+              </button>
+
+              <!-- Excel Import Button -->
+              <label for="input-import-xlsx" title="Impor data dari berkas Excel (.xlsx)" class="text-xs font-bold bg-blue-50 hover:bg-blue-100 text-blue-800 border border-blue-200 px-2.5 py-2 rounded-xl transition cursor-pointer flex items-center gap-1 shadow-xs">
+                📤 Impor Excel (.xlsx)
+                <input type="file" id="input-import-xlsx" accept=".xlsx, .xls" class="hidden" />
+              </label>
+
+              <!-- Research CSV Import Button -->
+              <label for="input-import-csv" title="Impor CSV Lahan Penelitian" class="hidden">
+                📄 Import CSV
+                <input type="file" id="input-import-csv" accept=".csv" class="hidden" />
+              </label>
+
+              <!-- Standard CSV Export Box -->
+              <button id="btn-export" title="Ekspor data ke CSV" class="hidden">
+                📥 Ekspor CSV (Asli)
+              </button>
+
+              <!-- Research Data Exporter -->
+              <button id="btn-export-research" title="Ekspor data hasil analisis penelitian lengkap" class="text-xs font-bold text-teal-800 hover:bg-teal-50 border border-teal-200 bg-white px-2.5 py-2 rounded-xl transition cursor-pointer flex items-center gap-1 shadow-xs">
+                📊 Export Excel Penelitian (.xlsx)
+              </button>
+
+              <!-- PDF Report Print action -->
+              <button id="btn-export-pdf" title="Cetak analisis ilmiah ke format PDF" class="text-xs font-bold text-indigo-800 hover:bg-indigo-50 border border-indigo-200 bg-white px-2.5 py-2 rounded-xl transition cursor-pointer flex items-center gap-1 shadow-xs">
+                📑 Export PDF
+              </button>
+
+              <!-- Export Peta PNG Action Dropdown -->
+              <div class="relative inline-block text-left" id="map-export-dropdown-container">
+                <button id="btn-trigger-map-export" title="Ekspor berbagai jenis visualisasi peta ke file gambar PNG beresolusi tinggi" class="text-xs font-bold text-emerald-800 hover:bg-emerald-50 border border-emerald-200 bg-white px-2.5 py-2 rounded-xl transition cursor-pointer flex items-center gap-1 shadow-xs select-none">
+                  🗺️ Export Peta PNG <span class="text-[9px]">▼</span>
+                </button>
+                <div id="map-export-menu" class="hidden absolute right-0 bottom-full mb-2 w-52 bg-white rounded-2xl border border-slate-200 shadow-xl z-[1001] flex flex-col p-1.5 gap-1 animate-fade-in divide-y divide-slate-100">
+                  <div class="p-2 text-xxs font-black text-slate-400 uppercase tracking-widest select-none">Pilih Jenis Peta</div>
+                  <div class="flex flex-col gap-1 pt-1.5">
+                    <button id="btn-menu-export-sebaran" class="w-full text-left text-xxs font-bold text-slate-700 hover:bg-slate-50 px-3 py-2 rounded-xl transition cursor-pointer flex items-center gap-1.5">
+                      🌈 Peta Sebaran pH
+                    </button>
+                    <button id="btn-menu-export-cabai" class="w-full text-left text-xxs font-bold text-emerald-800 hover:bg-emerald-50 px-3 py-2 rounded-xl transition cursor-pointer flex items-center gap-1.5">
+                      🌶️ Zona Kesesuaian Cabai
+                    </button>
+                    <button id="btn-menu-export-mentimun" class="w-full text-left text-xxs font-bold text-teal-800 hover:bg-teal-50 px-3 py-2 rounded-xl transition cursor-pointer flex items-center gap-1.5">
+                      🥒 Zona Kesesuaian Mentimun
+                    </button>
+                    <button id="btn-menu-export-kriging" class="w-full text-left text-xxs font-bold text-indigo-800 hover:bg-indigo-50 px-3 py-2 rounded-xl transition cursor-pointer flex items-center gap-1.5">
+                      🧬 Peta Analisis Kriging
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Reset Button -->
+              <button id="btn-purge" title="Hapus semua sampel" class="text-xs font-bold text-rose-600 hover:bg-rose-50 border border-slate-200 hover:border-rose-100 bg-white px-2.5 py-2 rounded-xl transition cursor-pointer shadow-xs">
                 🗑️ Atur Ulang
               </button>
             </div>
@@ -496,6 +892,7 @@
               <tr>
                 <th class="px-6 py-3.5">Nama Titik / Lokasi Lahan</th>
                 <th class="px-6 py-3.5">Koordinat (Lat, Lng)</th>
+                <th class="px-6 py-3.5 text-center">Foto Lapangan</th>
                 <th class="px-6 py-3.5 text-center">Nilai pH</th>
                 <th class="px-6 py-3.5 text-center">Status Keasaman</th>
                 <th class="px-6 py-3.5">Catatan/Rekomendasi</th>
@@ -531,6 +928,29 @@
         <a href="#" onclick="alert('Database Anda disimpan seutuhnya di dalam memori luring perangkat (IndexedDB) dan di-cache sepenuhnya secara independen oleh Service Worker.')" class="hover:text-emerald-600 transition">Kebijakan Privasi &amp; Loring</a>
       </div>
     </footer>
+
+    <!-- Beautiful Photo Lightbox Modal -->
+    <div id="photo-modal" class="hidden fixed inset-0 z-[1000] bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4 transition-all duration-300">
+      <div class="bg-white rounded-3xl max-w-lg w-full overflow-hidden shadow-2xl relative flex flex-col max-h-[85vh]">
+        <!-- Modal Title Header -->
+        <div class="px-5 py-4 border-b border-slate-100 flex items-center justify-between bg-white text-slate-900">
+          <h3 id="photo-modal-title" class="text-xs font-black uppercase text-slate-700 tracking-wider">Pratinjau Foto Dokumentasi</h3>
+          <button id="btn-close-photo-modal" class="p-1 px-2.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-500 hover:text-slate-800 transition font-black text-xs cursor-pointer">
+            Tutup (Esc)
+          </button>
+        </div>
+        <!-- Modal Image Body -->
+        <div class="p-5 flex justify-center items-center bg-slate-50 overflow-y-auto">
+          <img id="photo-modal-img" class="max-h-[50vh] object-contain rounded-2xl border shadow-sm" src="" alt="Pratinjau Foto" referrerPolicy="no-referrer" />
+        </div>
+        <!-- Modal Footer Description -->
+        <div class="px-5 py-3 border-t border-slate-100 bg-white flex justify-end gap-2">
+          <button id="btn-download-photo-modal" class="text-xxs font-black text-emerald-800 bg-emerald-50 hover:bg-emerald-100 rounded-xl px-4 py-2 transition border border-emerald-200 cursor-pointer">
+            💾 Unduh Foto
+          </button>
+        </div>
+      </div>
+    </div>
 
     <script type="module" src="/app.js"></script>
   </body>
