@@ -8,6 +8,21 @@ import { classifyChiliSuitability, classifyCucumberSuitability } from './suitabi
 import { getPHCategory } from './db.js';
 import { runGeostatisticalAnalysis } from './geostatistics.js';
 import { ordinaryKrigingSingle, buildKrigingMatrix } from './kriging.js';
+import {
+  projectCoordinatesToMeters,
+  computeExperimentalPairs,
+  binnedVariogram,
+  fitTheoreticalModel
+} from './variogram.js';
+import {
+  classifyNitrogen,
+  classifyFosfor,
+  classifyKalium,
+  classifyCOrganik,
+  classifyPH,
+  calculateSFI,
+  classifySFI
+} from './fertility.js';
 
 // Holds references to active Leaflet Layer groups
 let heatmapLayerGroup = null;
@@ -15,6 +30,14 @@ let krigingLayerGroup = null;
 let krigingErrorLayerGroup = null;
 let chiliLayerGroup = null;
 let cucumberLayerGroup = null;
+
+// New Fertility Parameter Layers
+let fertilityPhLayerGroup = null;
+let nitrogenLayerGroup = null;
+let fosforLayerGroup = null;
+let kaliumLayerGroup = null;
+let cOrganikLayerGroup = null;
+let sfiLayerGroup = null;
 
 // Extracted spatial stats following last calculation
 let currentSpatialStats = {
@@ -26,7 +49,15 @@ let currentSpatialStats = {
   avgDolomite: 0,
   maxDolomite: 0,
   minDolomite: 0,
-  countNeedDolomite: 0
+  countNeedDolomite: 0,
+  sfiAvg: 0,
+  sfiMin: 100,
+  sfiMax: 0,
+  sfiAreaSangatSuburHa: 0,
+  sfiAreaSuburHa: 0,
+  sfiAreaSedangHa: 0,
+  sfiAreaKurangSuburHa: 0,
+  sfiAreaTidakSuburHa: 0
 };
 
 // Global cached geostatistical results
@@ -37,6 +68,39 @@ let lastGeostatsResult = null;
  * @param {Object} mapInstance - Leaflet map instance
  * @param {Array} samples - Entire soil database
  */
+function getSelectedFertilityAlgorithm() {
+  const btnKriging = document.getElementById('btn-algo-kriging');
+  if (btnKriging && (btnKriging.classList.contains('bg-white') || btnKriging.classList.contains('active-algo'))) {
+    return 'kriging';
+  }
+  return 'idw';
+}
+
+function getKrigingModelForAttribute(samples, attrName) {
+  const validSamples = samples.filter(s => {
+    const val = s[attrName];
+    return val !== undefined && val !== null && val !== '' && !isNaN(parseFloat(val));
+  });
+  if (validSamples.length < 3) return null;
+
+  try {
+    const projectedRaw = projectCoordinatesToMeters(validSamples);
+    const projected = projectedRaw.map(s => ({
+      ...s,
+      ph: parseFloat(s[attrName])
+    }));
+    const pairs = computeExperimentalPairs(projected);
+    const binned = binnedVariogram(pairs, 12);
+    const rawList = projected.map(s => s.ph);
+    const fittedModel = fitTheoreticalModel(binned, rawList);
+    const krigingA = buildKrigingMatrix(projected, fittedModel);
+    return { projected, fittedModel, krigingA };
+  } catch (err) {
+    console.error(`Kriging model fit failed for ${attrName}:`, err);
+    return null;
+  }
+}
+
 export function recalculateSpatialLayers(mapInstance, samples) {
   if (!mapInstance) return null;
 
@@ -56,6 +120,25 @@ export function recalculateSpatialLayers(mapInstance, samples) {
   if (!cucumberLayerGroup) cucumberLayerGroup = L.featureGroup();
   else cucumberLayerGroup.clearLayers();
 
+  // Fertility Groups
+  if (!fertilityPhLayerGroup) fertilityPhLayerGroup = L.featureGroup();
+  else fertilityPhLayerGroup.clearLayers();
+
+  if (!nitrogenLayerGroup) nitrogenLayerGroup = L.featureGroup();
+  else nitrogenLayerGroup.clearLayers();
+
+  if (!fosforLayerGroup) fosforLayerGroup = L.featureGroup();
+  else fosforLayerGroup.clearLayers();
+
+  if (!kaliumLayerGroup) kaliumLayerGroup = L.featureGroup();
+  else kaliumLayerGroup.clearLayers();
+
+  if (!cOrganikLayerGroup) cOrganikLayerGroup = L.featureGroup();
+  else cOrganikLayerGroup.clearLayers();
+
+  if (!sfiLayerGroup) sfiLayerGroup = L.featureGroup();
+  else sfiLayerGroup.clearLayers();
+
   if (!samples || samples.length === 0) {
     resetSpatialStats();
     lastGeostatsResult = null;
@@ -72,14 +155,23 @@ export function recalculateSpatialLayers(mapInstance, samples) {
     return currentSpatialStats;
   }
 
-  // 2. Perform Geostatistical Modeling
+  // 2. Perform Geostatistical Modeling for pH
   lastGeostatsResult = runGeostatisticalAnalysis(samples);
   let krigingA = null;
   if (lastGeostatsResult && lastGeostatsResult.status === 'success') {
     krigingA = buildKrigingMatrix(lastGeostatsResult.projected, lastGeostatsResult.fittedModel);
   }
 
-  // Pre-calculate projection constants for cell loop
+  // 3. Pre-calculate Kriging matrices and models for N, P, K, C-Organik if Kriging is selected
+  const algo = getSelectedFertilityAlgorithm();
+  let krigModels = {
+    ph: null,
+    nitrogen: null,
+    fosfor: null,
+    kalium: null,
+    cOrganik: null
+  };
+
   const sumLat = samples.reduce((acc, s) => acc + s.latitude, 0);
   const sumLng = samples.reduce((acc, s) => acc + s.longitude, 0);
   const originLat = sumLat / samples.length;
@@ -88,6 +180,22 @@ export function recalculateSpatialLayers(mapInstance, samples) {
   const latToMeters = 111320;
   const rad = originLat * (Math.PI / 180);
   const lngToMeters = 111320 * Math.cos(rad);
+
+  if (algo === 'kriging') {
+    krigModels.ph = { projected: lastGeostatsResult?.projected, fittedModel: lastGeostatsResult?.fittedModel, krigingA };
+    krigModels.nitrogen = getKrigingModelForAttribute(samples, 'nitrogen');
+    krigModels.fosfor = getKrigingModelForAttribute(samples, 'fosfor');
+    krigModels.kalium = getKrigingModelForAttribute(samples, 'kalium');
+    krigModels.cOrganik = getKrigingModelForAttribute(samples, 'cOrganik');
+  }
+
+  function estimateKrigingValue(cell, modelObj, defaultVal) {
+    if (!modelObj || !modelObj.fittedModel || !modelObj.projected) return defaultVal;
+    const targetX = (cell.centerLng - originLng) * lngToMeters;
+    const targetY = (cell.centerLat - originLat) * latToMeters;
+    const krigRes = ordinaryKrigingSingle(targetX, targetY, modelObj.projected, modelObj.fittedModel, modelObj.krigingA);
+    return krigRes ? krigRes.prediction : defaultVal;
+  }
 
   const maxErrorBound = lastGeostatsResult?.fittedModel ? Math.sqrt(lastGeostatsResult.fittedModel.sill) : 1;
 
@@ -98,7 +206,18 @@ export function recalculateSpatialLayers(mapInstance, samples) {
   let totalUnsuitableHa = 0;
   let totalCalculatedHa = 0;
 
-  // 3. Map cells into respective Leaflet Grid overlays
+  // SFI Accumulators
+  let sumSfi = 0;
+  let minSfi = 100;
+  let maxSfi = 0;
+  let countSfi = 0;
+  let sfiAreaSangatSuburHa = 0;
+  let sfiAreaSuburHa = 0;
+  let sfiAreaSedangHa = 0;
+  let sfiAreaKurangSuburHa = 0;
+  let sfiAreaTidakSuburHa = 0;
+
+  // 4. Map cells into respective Leaflet Grid overlays
   cells.forEach(cell => {
     const { lat1, lng1, lat2, lng2, centerLat, centerLng, ph, areaHa } = cell;
 
@@ -162,7 +281,7 @@ export function recalculateSpatialLayers(mapInstance, samples) {
     krigErrRect.bindTooltip(`Deviasi Error (SD): ${stdError.toFixed(3)} pH<br><span class="text-[9px] text-slate-300 font-semibold">95% CI: ${ciMin.toFixed(2)} - ${ciMax.toFixed(2)} pH</span>`, {
       html: true,
       sticky: true,
-      className: 'text-xxs p-1 bg-slate-950/95 text-white rounded-lg'
+      className: 'text-xxs p-1 bg-slate-955/95 text-white rounded-lg'
     });
     krigingErrorLayerGroup.addLayer(krigErrRect);
 
@@ -199,6 +318,108 @@ export function recalculateSpatialLayers(mapInstance, samples) {
     });
     cucumberRect.bindTooltip(`Kesesuaian Mentimun: ${cucumberSuit.status} (pH ${ph.toFixed(2)})`, { sticky: true, className: 'text-xxs font-bold' });
     cucumberLayerGroup.addLayer(cucumberRect);
+
+    // --- F1. Agronomic pH Layer ---
+    const fPhVal = algo === 'kriging' ? estimateKrigingValue(cell, krigModels.ph, cell.ph) : cell.ph;
+    const fPhCls = classifyPH(fPhVal);
+    if (fPhCls) {
+      const fPhRect = L.rectangle([[lat1, lng1], [lat2, lng2]], {
+        color: 'transparent',
+        fillColor: fPhCls.color,
+        fillOpacity: 0.45,
+        weight: 0,
+        interactive: true
+      });
+      fPhRect.bindTooltip(`Peta pH (${algo.toUpperCase()}): ${fPhVal.toFixed(2)} (${fPhCls.label})`, { sticky: true, className: 'text-xxs font-sans font-bold' });
+      fertilityPhLayerGroup.addLayer(fPhRect);
+    }
+
+    // --- F2. Nitrogen Layer ---
+    const nVal = algo === 'kriging' ? Math.max(0, estimateKrigingValue(cell, krigModels.nitrogen, cell.nitrogen)) : cell.nitrogen;
+    const nCls = classifyNitrogen(nVal);
+    if (nCls) {
+      const nRect = L.rectangle([[lat1, lng1], [lat2, lng2]], {
+        color: 'transparent',
+        fillColor: nCls.color,
+        fillOpacity: 0.45,
+        weight: 0,
+        interactive: true
+      });
+      nRect.bindTooltip(`Peta Nitrogen (${algo.toUpperCase()}): ${nVal.toFixed(3)}% (${nCls.label})`, { sticky: true, className: 'text-xxs font-sans font-bold' });
+      nitrogenLayerGroup.addLayer(nRect);
+    }
+
+    // --- F3. Fosfor Layer ---
+    const pVal = algo === 'kriging' ? Math.max(0, estimateKrigingValue(cell, krigModels.fosfor, cell.fosfor)) : cell.fosfor;
+    const pCls = classifyFosfor(pVal);
+    if (pCls) {
+      const pRect = L.rectangle([[lat1, lng1], [lat2, lng2]], {
+        color: 'transparent',
+        fillColor: pCls.color,
+        fillOpacity: 0.45,
+        weight: 0,
+        interactive: true
+      });
+      pRect.bindTooltip(`Peta Fosfor (${algo.toUpperCase()}): ${pVal.toFixed(1)} ppm (${pCls.label})`, { sticky: true, className: 'text-xxs font-sans font-bold' });
+      fosforLayerGroup.addLayer(pRect);
+    }
+
+    // --- F4. Kalium Layer ---
+    const kVal = algo === 'kriging' ? Math.max(0, estimateKrigingValue(cell, krigModels.kalium, cell.kalium)) : cell.kalium;
+    const kCls = classifyKalium(kVal);
+    if (kCls) {
+      const kRect = L.rectangle([[lat1, lng1], [lat2, lng2]], {
+        color: 'transparent',
+        fillColor: kCls.color,
+        fillOpacity: 0.45,
+        weight: 0,
+        interactive: true
+      });
+      kRect.bindTooltip(`Peta Kalium (${algo.toUpperCase()}): ${kVal.toFixed(1)} ppm (${kCls.label})`, { sticky: true, className: 'text-xxs font-sans font-bold' });
+      kaliumLayerGroup.addLayer(kRect);
+    }
+
+    // --- F5. C-Organik Layer ---
+    const cVal = algo === 'kriging' ? Math.max(0, estimateKrigingValue(cell, krigModels.cOrganik, cell.cOrganik)) : cell.cOrganik;
+    const cCls = classifyCOrganik(cVal);
+    if (cCls) {
+      const cRect = L.rectangle([[lat1, lng1], [lat2, lng2]], {
+        color: 'transparent',
+        fillColor: cCls.color,
+        fillOpacity: 0.45,
+        weight: 0,
+        interactive: true
+      });
+      cRect.bindTooltip(`Peta C-Organik (${algo.toUpperCase()}): ${cVal.toFixed(2)}% (${cCls.label})`, { sticky: true, className: 'text-xxs font-sans font-bold' });
+      cOrganikLayerGroup.addLayer(cRect);
+    }
+
+    // --- F6. Soil Fertility Index (SFI) Layer ---
+    const fPhValVal = algo === 'kriging' ? estimateKrigingValue(cell, krigModels.ph, cell.ph) : cell.ph;
+    const sfiVal = calculateSFI(fPhValVal, nVal, pVal, kVal, cVal);
+    const sfiCls = classifySFI(sfiVal);
+    if (sfiCls) {
+      const sfiRect = L.rectangle([[lat1, lng1], [lat2, lng2]], {
+        color: 'transparent',
+        fillColor: sfiCls.color,
+        fillOpacity: 0.45,
+        weight: 0,
+        interactive: true
+      });
+      sfiRect.bindTooltip(`Peta SFI (${algo.toUpperCase()}): ${sfiVal.toFixed(1)} (${sfiCls.label})`, { sticky: true, className: 'text-xxs font-sans font-bold' });
+      sfiLayerGroup.addLayer(sfiRect);
+
+      sumSfi += sfiVal;
+      countSfi++;
+      if (sfiVal < minSfi) minSfi = sfiVal;
+      if (sfiVal > maxSfi) maxSfi = sfiVal;
+
+      if (sfiVal >= 80) sfiAreaSangatSuburHa += areaHa;
+      else if (sfiVal >= 60) sfiAreaSuburHa += areaHa;
+      else if (sfiVal >= 40) sfiAreaSedangHa += areaHa;
+      else if (sfiVal >= 20) sfiAreaKurangSuburHa += areaHa;
+      else sfiAreaTidakSuburHa += areaHa;
+    }
   });
 
   // Calculate dolomite variables
@@ -232,7 +453,15 @@ export function recalculateSpatialLayers(mapInstance, samples) {
     avgDolomite,
     maxDolomite,
     minDolomite,
-    countNeedDolomite: dolomiteValues.length
+    countNeedDolomite: dolomiteValues.length,
+    sfiAvg: countSfi > 0 ? sumSfi / countSfi : 0,
+    sfiMin: countSfi > 0 && minSfi !== 100 ? minSfi : 0,
+    sfiMax: countSfi > 0 ? maxSfi : 0,
+    sfiAreaSangatSuburHa,
+    sfiAreaSuburHa,
+    sfiAreaSedangHa,
+    sfiAreaKurangSuburHa,
+    sfiAreaTidakSuburHa
   };
 
   return currentSpatialStats;
@@ -266,7 +495,15 @@ function resetSpatialStats() {
     avgDolomite: 0,
     maxDolomite: 0,
     minDolomite: 0,
-    countNeedDolomite: 0
+    countNeedDolomite: 0,
+    sfiAvg: 0,
+    sfiMin: 100,
+    sfiMax: 0,
+    sfiAreaSangatSuburHa: 0,
+    sfiAreaSuburHa: 0,
+    sfiAreaSedangHa: 0,
+    sfiAreaKurangSuburHa: 0,
+    sfiAreaTidakSuburHa: 0
   };
 }
 
@@ -293,6 +530,12 @@ export function getSpatialLayerGroups() {
     kriging: krigingLayerGroup,
     krigingError: krigingErrorLayerGroup,
     chili: chiliLayerGroup,
-    cucumber: cucumberLayerGroup
+    cucumber: cucumberLayerGroup,
+    fertilityPh: fertilityPhLayerGroup,
+    nitrogen: nitrogenLayerGroup,
+    fosfor: fosforLayerGroup,
+    kalium: kaliumLayerGroup,
+    cOrganik: cOrganikLayerGroup,
+    sfi: sfiLayerGroup
   };
 }

@@ -54,6 +54,10 @@ export function addSample(sample) {
         latitude: parseFloat(sample.latitude),
         longitude: parseFloat(sample.longitude),
         ph: parseFloat(sample.ph),
+        nitrogen: (sample.nitrogen !== undefined && sample.nitrogen !== null && sample.nitrogen !== '') ? parseFloat(sample.nitrogen) : null,
+        fosfor: (sample.fosfor !== undefined && sample.fosfor !== null && sample.fosfor !== '') ? parseFloat(sample.fosfor) : null,
+        kalium: (sample.kalium !== undefined && sample.kalium !== null && sample.kalium !== '') ? parseFloat(sample.kalium) : null,
+        cOrganik: (sample.cOrganik !== undefined && sample.cOrganik !== null && sample.cOrganik !== '') ? parseFloat(sample.cOrganik) : null,
         timestamp: sample.timestamp || Date.now(),
         catatan: sample.catatan || '',
         fotoLokasi: sample.fotoLokasi || '',
@@ -123,6 +127,10 @@ export function updateSample(id, sample) {
         latitude: parseFloat(sample.latitude),
         longitude: parseFloat(sample.longitude),
         ph: parseFloat(sample.ph),
+        nitrogen: (sample.nitrogen !== undefined && sample.nitrogen !== null && sample.nitrogen !== '') ? parseFloat(sample.nitrogen) : null,
+        fosfor: (sample.fosfor !== undefined && sample.fosfor !== null && sample.fosfor !== '') ? parseFloat(sample.fosfor) : null,
+        kalium: (sample.kalium !== undefined && sample.kalium !== null && sample.kalium !== '') ? parseFloat(sample.kalium) : null,
+        cOrganik: (sample.cOrganik !== undefined && sample.cOrganik !== null && sample.cOrganik !== '') ? parseFloat(sample.cOrganik) : null,
         timestamp: sample.timestamp || Date.now(),
         catatan: sample.catatan || '',
         fotoLokasi: sample.fotoLokasi || '',
@@ -247,12 +255,12 @@ export function getPHCategory(ph) {
  */
 export async function seedDummyData() {
   const dummySamples = [
-    { nama: 'Lahan Cabai - Sleman Barat', latitude: -7.7212, longitude: 110.3125, ph: 5.8, catatan: 'Pertumbuhan cabai sedang, sebagian daun menguning. Perlu tambahan pupuk organik.' },
-    { nama: 'Lahan Mentimun - Piyungan', latitude: -7.8344, longitude: 110.4567, ph: 6.8, catatan: 'Kualitas tanaman sangat subur. Hasil buah melimpah dan renyah.' },
-    { nama: 'Lahan Cabai - Pakem Tinggi', latitude: -7.6652, longitude: 110.4182, ph: 4.8, catatan: 'Tanah terlalu asam karena intensitas hujan tinggi. Direkomendasikan menambah kapur dolomit 2 ton/ha.' },
-    { nama: 'Kebun Penelitian - Kalasan', latitude: -7.7719, longitude: 110.4902, ph: 6.3, catatan: 'Cocok sekali untuk tanaman cabai maupun mentimun.' },
-    { nama: 'Lahan Pasir Pantai - Bantul', latitude: -7.9942, longitude: 110.3341, ph: 7.8, catatan: 'Tanah berkapur pantai cenderung basa. Memerlukan penyesuaian pH dengan amonium sulfat.' },
-    { nama: 'Hortikultura - Wonosari', latitude: -7.9621, longitude: 110.6012, ph: 7.1, catatan: 'Kondisi tanah netral, sangat seimbang.' }
+    { nama: 'Lahan Cabai - Sleman Barat', latitude: -7.7212, longitude: 110.3125, ph: 5.8, nitrogen: 1.15, fosfor: 12.5, kalium: 110.0, cOrganik: 1.85, catatan: 'Pertumbuhan cabai sedang, sebagian daun menguning. Perlu tambahan pupuk organik.' },
+    { nama: 'Lahan Mentimun - Piyungan', latitude: -7.8344, longitude: 110.4567, ph: 6.8, nitrogen: 2.10, fosfor: 28.4, kalium: 195.0, cOrganik: 2.90, catatan: 'Kualitas tanaman sangat subur. Hasil buah melimpah dan renyah.' },
+    { nama: 'Lahan Cabai - Pakem Tinggi', latitude: -7.6652, longitude: 110.4182, ph: 4.8, nitrogen: 0.55, fosfor: 5.2, kalium: 55.0, cOrganik: 0.95, catatan: 'Tanah terlalu asam karena intensitas hujan tinggi. Direkomendasikan menambah kapur dolomit 2 ton/ha.' },
+    { nama: 'Kebun Penelitian - Kalasan', latitude: -7.7719, longitude: 110.4902, ph: 6.3, nitrogen: 1.45, fosfor: 18.0, kalium: 140.0, cOrganik: 2.15, catatan: 'Cocok sekali untuk tanaman cabai maupun mentimun.' },
+    { nama: 'Lahan Pasir Pantai - Bantul', latitude: -7.9942, longitude: 110.3341, ph: 7.8, nitrogen: 0.85, fosfor: 35.0, kalium: 210.0, cOrganik: 1.20, catatan: 'Tanah berkapur pantai cenderung basa. Memerlukan penyesuaian pH dengan amonium sulfat.' },
+    { nama: 'Hortikultura - Wonosari', latitude: -7.9621, longitude: 110.6012, ph: 7.1, nitrogen: 1.80, fosfor: 22.0, kalium: 165.0, cOrganik: 2.50, catatan: 'Kondisi tanah netral, sangat seimbang.' }
   ];
 
   for (const sample of dummySamples) {

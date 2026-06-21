@@ -18,6 +18,44 @@ function calculateDistance(lat1, lng1, lat2, lng2) {
 }
 
 /**
+ * Run IDW algorithm on a set of soil sample points for a specific property
+ */
+function interpolateProperty(propName, defaultVal, cellLat, cellLng, samples, power) {
+  const validSamples = samples.filter(s => {
+    const val = s[propName];
+    return val !== undefined && val !== null && val !== '' && !isNaN(parseFloat(val));
+  });
+
+  if (validSamples.length === 0) return defaultVal;
+
+  for (const sample of validSamples) {
+    const dLat = cellLat - sample.latitude;
+    const dLng = cellLng - sample.longitude;
+    const dist = Math.sqrt(dLat * dLat + dLng * dLng);
+    if (dist === 0) {
+      return parseFloat(sample[propName]);
+    }
+  }
+
+  let weightedSum = 0;
+  let weightTotal = 0;
+
+  validSamples.forEach(sample => {
+    const dLat = cellLat - sample.latitude;
+    const dLng = cellLng - sample.longitude;
+    const dist = Math.sqrt(dLat * dLat + dLng * dLng);
+    const weight = 1 / Math.pow(dist, power);
+    weightedSum += parseFloat(sample[propName]) * weight;
+    weightTotal += weight;
+  });
+
+  if (weightTotal > 0) {
+    return weightedSum / weightTotal;
+  }
+  return defaultVal;
+}
+
+/**
  * Run IDW algorithm on a set of soil sample points
  * @param {Array} samples - List of soil database records ({latitude, longitude, ph})
  * @param {number} gridResolution - Number of grid cells per axis (e.g. 40 for a 40x40 grid)
@@ -90,34 +128,11 @@ export function performIDW(samples, gridResolution = 40, power = 2) {
       const centerLat = cellMinLat + deltaLat / 2;
       const centerLng = cellMinLng + deltaLng / 2;
 
-      let interpolatedPH = 6.5; // neutral fallback
-      let exactMatch = false;
-
-      // Check for exact location match to prevent division by zero
-      for (const sample of samples) {
-        const dist = calculateDistance(centerLat, centerLng, sample.latitude, sample.longitude);
-        if (dist === 0) {
-          interpolatedPH = sample.ph;
-          exactMatch = true;
-          break;
-        }
-      }
-
-      if (!exactMatch) {
-        let weightedSum = 0;
-        let weightTotal = 0;
-
-        samples.forEach(sample => {
-          const dist = calculateDistance(centerLat, centerLng, sample.latitude, sample.longitude);
-          const weight = 1 / Math.pow(dist, power);
-          weightedSum += sample.ph * weight;
-          weightTotal += weight;
-        });
-
-        if (weightTotal > 0) {
-          interpolatedPH = weightedSum / weightTotal;
-        }
-      }
+      const interpolatedPH = interpolateProperty('ph', 6.5, centerLat, centerLng, samples, power);
+      const interpolatedN = interpolateProperty('nitrogen', 0.15, centerLat, centerLng, samples, power);
+      const interpolatedP = interpolateProperty('fosfor', 15.0, centerLat, centerLng, samples, power);
+      const interpolatedK = interpolateProperty('kalium', 100.0, centerLat, centerLng, samples, power);
+      const interpolatedC = interpolateProperty('cOrganik', 1.5, centerLat, centerLng, samples, power);
 
       cells.push({
         lat1: cellMinLat,
@@ -127,6 +142,10 @@ export function performIDW(samples, gridResolution = 40, power = 2) {
         centerLat,
         centerLng,
         ph: interpolatedPH,
+        nitrogen: interpolatedN,
+        fosfor: interpolatedP,
+        kalium: interpolatedK,
+        cOrganik: interpolatedC,
         areaHa: cellAreaHectare
       });
     }

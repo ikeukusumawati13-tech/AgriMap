@@ -6,6 +6,8 @@
 import { classifyChiliSuitability, classifyCucumberSuitability } from './suitability.js';
 import { getPHCategory } from './db.js';
 import { loadResearchMetadata } from './metadata_manager.js';
+import { getFertilizerRecommendation } from './fertilizer.js';
+import { calculateFertilizerRecommendation } from './fertilizerRecommendation.js';
 
 /**
  * Generates and downloads the PDF Research Report.
@@ -240,7 +242,221 @@ export function generatePDFReport(samples, spatialStats) {
     doc.text(`Kandungan Aluminium (Al) bebas aktif relatif aman dan fosfor tersedia untuk tanaman.`, 20, y + 18);
   }
 
-  // --- PAGE 2: DATA TABLE INVENTORY ---
+  // --- PAGE 2: AUTOMATIC FERTILIZER RECOMMENDATIONS ---
+  doc.addPage();
+  
+  // Calculate nutrient averages for recommendations
+  let nSum = 0, nCount = 0;
+  let pSum = 0, pCount = 0;
+  let kSum = 0, kCount = 0;
+  let cSum = 0, cCount = 0;
+
+  samples.forEach((s) => {
+    if (s.nitrogen !== undefined && s.nitrogen !== null && s.nitrogen !== '' && !isNaN(parseFloat(s.nitrogen))) {
+      nSum += parseFloat(s.nitrogen);
+      nCount++;
+    }
+    if (s.fosfor !== undefined && s.fosfor !== null && s.fosfor !== '' && !isNaN(parseFloat(s.fosfor))) {
+      pSum += parseFloat(s.fosfor);
+      pCount++;
+    }
+    if (s.kalium !== undefined && s.kalium !== null && s.kalium !== '' && !isNaN(parseFloat(s.kalium))) {
+      kSum += parseFloat(s.kalium);
+      kCount++;
+    }
+    if (s.cOrganik !== undefined && s.cOrganik !== null && s.cOrganik !== '' && !isNaN(parseFloat(s.cOrganik))) {
+      cSum += parseFloat(s.cOrganik);
+      cCount++;
+    }
+  });
+
+  const avgN = nCount > 0 ? nSum / nCount : 0.25;
+  const avgP = pCount > 0 ? pSum / pCount : 25.0;
+  const avgK = kCount > 0 ? kSum / kCount : 125.0;
+  const avgC = cCount > 0 ? cSum / cCount : 1.8;
+
+  const rec = getFertilizerRecommendation(avgPh, avgN, avgP, avgK, avgC);
+  const landAreaHa = metadata.luasLahan !== undefined ? metadata.luasLahan : 1.0;
+  const actualRec = calculateFertilizerRecommendation(avgPh, avgN, avgP, avgK, avgC, landAreaHa);
+
+  // Top header block for Page 2
+  doc.setFillColor(27, 67, 50); // GREEN_DARK
+  doc.rect(0, 0, 210, 15, 'F');
+  
+  doc.setTextColor(255, 255, 255);
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(10);
+  doc.text('4. REKOMENDASI PEMUPUKAN & TINDAKAN AGRONOMIS OTOMATIS PRESISI', 15, 9.5);
+
+  let py = 25;
+
+  // 1. Limiting Factor & Lowest Parameter Combined Card
+  doc.setFillColor(254, 243, 199); // light amber bg
+  doc.setDrawColor(252, 211, 77); // amber border
+  doc.rect(15, py, 180, 27, 'FD');
+
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(9);
+  doc.setTextColor(146, 64, 14); // amber-800
+  doc.text('FAKTOR PEMBATAS UTAMA & PARAMETER TERENDAH', 20, py + 5.5);
+
+  doc.setFontSize(9);
+  doc.setTextColor(SLATE_DARK);
+  doc.text(`Kategori Terendah: ${rec.lowestParam.name} = ${rec.lowestParam.valStr} (${rec.lowestParam.label})`, 20, py + 11.5);
+  
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(8);
+  const splitLimitText = doc.splitTextToSize(rec.limitingFactor.desc, 170);
+  doc.text(splitLimitText, 20, py + 16.5);
+
+  py += 33;
+
+  // 2. Takaran Pupuk Rekomendasi Title
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(10);
+  doc.setTextColor(SLATE_DARK);
+  doc.text(`RENCANA PEMUPUKAN AKTUAL (LUAS LAHAN: ${landAreaHa.toFixed(2)} Ha)`, 15, py);
+  doc.line(15, py + 2, 195, py + 2);
+
+  py += 8;
+
+  // Let's print out the 5 fertilizer types using our actual calculated recommendations
+  const fertData = [
+    { 
+      name: 'Urea (Pemasok N)', 
+      val: `${actualRec.urea.perHa} kg/Ha`, 
+      desc: `Kebutuhan Total: ${actualRec.urea.valStrKg} (${actualRec.urea.valStrTon} / ${Math.ceil(actualRec.urea.totalZak)} zak)\nStatus Nitrogen di lapangan: ${actualRec.statuses.nitrogen}`, 
+      color: [21, 128, 61] 
+    },
+    { 
+      name: 'SP-36 (Pemasok P)', 
+      val: `${actualRec.sp36.perHa} kg/Ha`, 
+      desc: `Kebutuhan Total: ${actualRec.sp36.valStrKg} (${actualRec.sp36.valStrTon} / ${Math.ceil(actualRec.sp36.totalZak)} zak)\nStatus Fosfor di lapangan: ${actualRec.statuses.fosfor}`, 
+      color: [14, 116, 144] 
+    },
+    { 
+      name: 'KCl (Pemasok K)', 
+      val: `${actualRec.kcl.perHa} kg/Ha`, 
+      desc: `Kebutuhan Total: ${actualRec.kcl.valStrKg} (${actualRec.kcl.valStrTon} / ${Math.ceil(actualRec.kcl.totalZak)} zak)\nStatus Kalium di lapangan: ${actualRec.statuses.kalium}`, 
+      color: [180, 83, 9] 
+    },
+    { 
+      name: 'Kapur Dolomit', 
+      val: `${actualRec.dolomit.perHa} kg/Ha`, 
+      desc: `Kebutuhan Total: ${actualRec.dolomit.valStrKg} (${actualRec.dolomit.valStrTon} / ${Math.ceil(actualRec.dolomit.totalZak)} zak)\nStatus Reaksi pH keasaman: ${actualRec.statuses.ph}`, 
+      color: [109, 40, 217] 
+    },
+    { 
+      name: 'Pupuk Kompos / Bahan Organik', 
+      val: `${actualRec.kompos.perHa} kg/Ha`, 
+      desc: `Kebutuhan Total: ${actualRec.kompos.valStrKg} (${actualRec.kompos.valStrTon} / ${Math.ceil(actualRec.kompos.totalZak)} zak)\nStatus Humus C-Organik: ${actualRec.statuses.cOrganik}`, 
+      color: [4, 120, 87] 
+    }
+  ];
+
+  fertData.forEach((fert) => {
+    doc.setFillColor(248, 250, 252);
+    doc.setDrawColor(226, 232, 240);
+    doc.rect(15, py, 180, 13, 'FD');
+
+    // Colored bullet
+    doc.setFillColor(fert.color[0], fert.color[1], fert.color[2]);
+    doc.rect(17, py + 4.5, 3, 3, 'F');
+
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(8.5);
+    doc.setTextColor(SLATE_DARK);
+    doc.text(fert.name, 23, py + 7);
+    
+    doc.setFontSize(9.5);
+    doc.setTextColor(fert.color[0], fert.color[1], fert.color[2]);
+    doc.text(fert.val, 72, py + 7.5, { align: 'left' });
+
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(7);
+    doc.setTextColor(SLATE_LIGHT);
+    const splitDesc = doc.splitTextToSize(fert.desc, 95);
+    doc.text(splitDesc, 98, py + 4.5);
+
+    py += 15;
+  });
+
+  // Dynamic Total Requirement Callout box
+  doc.setFillColor(236, 253, 245); // light emerald-50 bg
+  doc.setDrawColor(16, 185, 129); // emerald-500 border
+  doc.rect(15, py, 180, 15, 'FD');
+
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(8.5);
+  doc.setTextColor(5, 150, 105); // emerald-600
+  doc.text(`KARTU TOTAL KEBUTUHAN LAHAN (${actualRec.area.toFixed(2)} Ha)`, 20, py + 5);
+
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(7.5);
+  doc.setTextColor(SLATE_DARK);
+  doc.text(`Total Seluruh Pupuk & Amelioran: ${actualRec.totals.valStrKg}  |  ${actualRec.totals.valStrTon}  |  Ekuivalen: ${Math.ceil(actualRec.totals.zak)} zak (kemasan 50 kg)`, 20, py + 10);
+
+  py += 21;
+
+  py += 2;
+
+  // 3. Step Roadmap Priority
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(10);
+  doc.setTextColor(SLATE_DARK);
+  doc.text('URUTAN PRIORITAS TINDAKAN LAPANGAN', 15, py);
+  doc.line(15, py + 2, 195, py + 2);
+
+  py += 8;
+
+  rec.actionsList.forEach((action) => {
+    doc.setFillColor(255, 255, 255);
+    doc.setDrawColor(241, 245, 249);
+    doc.rect(15, py - 1, 180, 11.5, 'FD');
+
+    // Circle Badge
+    doc.setFillColor(27, 67, 50); // GREEN_DARK
+    doc.rect(17, py + 1.5, 5, 5, 'F');
+    doc.setTextColor(255, 255, 255);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(7.5);
+    doc.text(action.step, 19.5, py + 5);
+
+    doc.setFontSize(8.5);
+    doc.setTextColor(SLATE_DARK);
+    doc.text(action.title, 26, py + 3.5);
+    doc.setFontSize(7.5);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(SLATE_LIGHT);
+    doc.text(`(${action.sub})`, 26, py + 7.5);
+
+    doc.setFontSize(7.5);
+    doc.setTextColor(SLATE_DARK);
+    const splitActDesc = doc.splitTextToSize(action.desc, 105);
+    doc.text(splitActDesc, 85, py + 4);
+
+    py += 14;
+  });
+
+  // 4. Transparency Box
+  py = 222;
+  doc.setFillColor(241, 245, 249); // light grey
+  doc.setDrawColor(203, 213, 225); // slate-300
+  doc.rect(15, py, 180, 24, 'FD');
+
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(7.5);
+  doc.setTextColor(SLATE_DARK);
+  doc.text('TRANSPARANSI METODOLOGI AGRONOMIS (STANDAR BALITTANAH)', 20, py + 5);
+
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(6.5);
+  doc.setTextColor(SLATE_LIGHT);
+  const ruleTxt = 'Aturan rekayasa dosis dikalkulasi dinamis: (1) Kapur dolomit diaktifkan jika pH di bawah 6.0 dengan rasio kebutuhan (6.0 - pH) x 1.5 - 2.5 t/ha. (2) Urea, SP-36 dan KCl ditakar presisi berdasarkan lima kurva hara (sangat rendah, rendah, sedang, tinggi, sangat tinggi) yang diposisikan guna meminimalisir kejenuhan pupuk kimia berlebih. (3) Humus C-Organik diawasi ketat di bawah batas kritis 2.0% dengan memicu anjuran amelioran murni mulsa organik 10-15 Ton/Ha.';
+  const splitRuleTxt = doc.splitTextToSize(ruleTxt, 170);
+  doc.text(splitRuleTxt, 20, py + 10);
+
+  // --- PAGE 3: DATA TABLE INVENTORY ---
   doc.addPage();
   y = 20;
 
@@ -250,7 +466,7 @@ export function generatePDFReport(samples, spatialStats) {
   doc.setTextColor(255, 255, 255);
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(10);
-  doc.text('4. LAMPIRAN DAFTAR INVENTARIS LOG TITIK SAMPEL PH TANAH', 15, 9.5);
+  doc.text('5. LAMPIRAN INVENTARIS LOG TITIK SAMPEL & NUTRISI TANAH', 15, 9.5);
 
   y = 25;
   doc.setFontSize(8);
@@ -269,8 +485,14 @@ export function generatePDFReport(samples, spatialStats) {
   doc.setTextColor(SLATE_DARK);
 
   samples.forEach((sample, index) => {
+    const hasNutrisi = (sample.nitrogen !== undefined && sample.nitrogen !== null && sample.nitrogen !== '') ||
+                       (sample.fosfor !== undefined && sample.fosfor !== null && sample.fosfor !== '') ||
+                       (sample.kalium !== undefined && sample.kalium !== null && sample.kalium !== '') ||
+                       (sample.cOrganik !== undefined && sample.cOrganik !== null && sample.cOrganik !== '');
+    const rowHeight = hasNutrisi ? 10 : 5.5;
+
     // Pagination check
-    if (y > 275) {
+    if (y + rowHeight > 282) {
       doc.addPage();
       // Draw sub-header on new page
       doc.setFillColor(27, 67, 50);
@@ -279,7 +501,7 @@ export function generatePDFReport(samples, spatialStats) {
       doc.setTextColor(255, 255, 255);
       doc.setFont('helvetica', 'bold');
       doc.setFontSize(10);
-      doc.text('4. LAMPIRAN DAFTAR INVENTARIS LOG TITIK SAMPEL PH TANAH (LANJUTAN)', 15, 9.5);
+      doc.text('5. LAMPIRAN INVENTARIS LOG TITIK SAMPEL & NUTRISI TANAH (LANJUTAN)', 15, 9.5);
 
       y = 25;
       doc.setFontSize(8);
@@ -301,7 +523,7 @@ export function generatePDFReport(samples, spatialStats) {
     // Zebra striping
     if (index % 2 === 0) {
       doc.setFillColor(248, 250, 252);
-      doc.rect(15, y - 4, 180, 5.5, 'F');
+      doc.rect(15, y - 4, 180, rowHeight, 'F');
     }
 
     const chiliS = classifyChiliSuitability(sample.ph);
@@ -319,6 +541,20 @@ export function generatePDFReport(samples, spatialStats) {
     doc.text(chiliS.status, 152, y);
     doc.text(cucumberS.status, 176, y);
 
+    if (hasNutrisi) {
+      y += 4.5;
+      doc.setFont('helvetica', 'italic');
+      doc.setFontSize(7);
+      doc.setTextColor(100, 116, 139); // SLATE_LIGHT-ish
+      const nStr = (sample.nitrogen !== undefined && sample.nitrogen !== null && sample.nitrogen !== '') ? `${parseFloat(sample.nitrogen).toFixed(2)} %` : '-';
+      const pStr = (sample.fosfor !== undefined && sample.fosfor !== null && sample.fosfor !== '') ? `${parseFloat(sample.fosfor).toFixed(1)} ppm` : '-';
+      const kStr = (sample.kalium !== undefined && sample.kalium !== null && sample.kalium !== '') ? `${parseFloat(sample.kalium).toFixed(1)} ppm` : '-';
+      const cStr = (sample.cOrganik !== undefined && sample.cOrganik !== null && sample.cOrganik !== '') ? `${parseFloat(sample.cOrganik).toFixed(2)} %` : '-';
+      doc.text(`   ↳ Analisis Kesuburan: [ N: ${nStr}  |  P: ${pStr}  |  K: ${kStr}  |  C-Org: ${cStr} ]`, 17, y);
+      doc.setFontSize(8);
+      doc.setTextColor(SLATE_DARK);
+    }
+
     y += 5.5;
   });
 
@@ -333,7 +569,7 @@ export function generatePDFReport(samples, spatialStats) {
   doc.setTextColor(255, 255, 255);
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(10);
-  doc.text('5. LAMPIRAN DOKUMENTASI FOTO LAPANGAN TITIK SAMPEL', 15, 9.5);
+  doc.text('6. LAMPIRAN DOKUMENTASI FOTO LAPANGAN TITIK SAMPEL', 15, 9.5);
 
   samples.forEach((sample) => {
     const hasPhotos = !!(sample.fotoLokasi || sample.fotoTanaman || sample.fotoTanah);
@@ -350,7 +586,7 @@ export function generatePDFReport(samples, spatialStats) {
       doc.setTextColor(255, 255, 255);
       doc.setFont('helvetica', 'bold');
       doc.setFontSize(10);
-      doc.text('5. LAMPIRAN DOKUMENTASI FOTO LAPANGAN TITIK SAMPEL (LANJUTAN)', 15, 9.5);
+      doc.text('6. LAMPIRAN DOKUMENTASI FOTO LAPANGAN TITIK SAMPEL (LANJUTAN)', 15, 9.5);
 
       y = 25;
     }

@@ -13,6 +13,28 @@ import {
   seedDummyData 
 } from './db.js';
 
+import {
+  classifyNitrogen,
+  classifyFosfor,
+  classifyKalium,
+  classifyCOrganik,
+  classifyPH,
+  classifySFI,
+  calculateSFI
+} from './fertility.js';
+
+import {
+  getFertilizerRecommendation
+} from './fertilizer.js';
+
+import {
+  analyzeLimitingFactors
+} from './limitingFactors.js';
+
+import {
+  calculateFertilizerRecommendation
+} from './fertilizerRecommendation.js';
+
 import { 
   initMap, 
   updateMapMarkers, 
@@ -189,6 +211,11 @@ function setupFormEventListeners() {
     const phVal = parseFloat(phInput.value);
     const notesVal = document.getElementById('sample-catatan').value.trim();
 
+    const nitrogenVal = document.getElementById('sample-nitrogen').value.trim();
+    const fosforVal = document.getElementById('sample-fosfor').value.trim();
+    const kaliumVal = document.getElementById('sample-kalium').value.trim();
+    const cOrganikVal = document.getElementById('sample-c-organik').value.trim();
+
     // Standard GIS Range Validations
     if (isNaN(latVal) || latVal < -90 || latVal > 90) {
       showToast('Error', 'Latitude harus berada dalam rentang -90 hingga 90 derajat.', 'error');
@@ -208,6 +235,10 @@ function setupFormEventListeners() {
       latitude: latVal,
       longitude: lngVal,
       ph: phVal,
+      nitrogen: nitrogenVal !== '' ? parseFloat(nitrogenVal) : null,
+      fosfor: fosforVal !== '' ? parseFloat(fosforVal) : null,
+      kalium: kaliumVal !== '' ? parseFloat(kaliumVal) : null,
+      cOrganik: cOrganikVal !== '' ? parseFloat(cOrganikVal) : null,
       catatan: notesVal,
       fotoLokasi: currentFotoLokasi,
       fotoTanaman: currentFotoTanaman,
@@ -382,6 +413,7 @@ function setupResearchMetadata() {
   const metaLokasi = document.getElementById('meta-lokasi');
   const metaKomoditas = document.getElementById('meta-komoditas');
   const metaTahun = document.getElementById('meta-tahun');
+  const metaLuas = document.getElementById('meta-luas');
   const saveBtn = document.getElementById('btn-save-metadata');
 
   // Load existing metadata from local storage
@@ -392,6 +424,7 @@ function setupResearchMetadata() {
   if (metaLokasi) metaLokasi.value = currentMeta.lokasiPenelitian || '';
   if (metaKomoditas) metaKomoditas.value = currentMeta.komoditasUtama || '';
   if (metaTahun) metaTahun.value = currentMeta.tahunPenelitian || new Date().getFullYear().toString();
+  if (metaLuas) metaLuas.value = currentMeta.luasLahan !== undefined ? currentMeta.luasLahan : 1.0;
 
   // Helper function to bundle current values
   function getCurrentMetaValues() {
@@ -401,17 +434,20 @@ function setupResearchMetadata() {
       instansi: metaInstansi ? metaInstansi.value : '',
       lokasiPenelitian: metaLokasi ? metaLokasi.value : '',
       komoditasUtama: metaKomoditas ? metaKomoditas.value : '',
-      tahunPenelitian: metaTahun ? metaTahun.value : ''
+      tahunPenelitian: metaTahun ? metaTahun.value : '',
+      luasLahan: metaLuas ? parseFloat(metaLuas.value) : 1.0
     };
   }
 
   // Auto-save on input value changes / blur so user has seamless local synchronization
-  const fields = [metaJudul, metaPeneliti, metaInstansi, metaLokasi, metaKomoditas, metaTahun];
+  const fields = [metaJudul, metaPeneliti, metaInstansi, metaLokasi, metaKomoditas, metaTahun, metaLuas];
   fields.forEach(field => {
     if (field) {
       field.addEventListener('input', () => {
         const data = getCurrentMetaValues();
         saveResearchMetadata(data);
+        // Instantly recalculate actual fertilizer recommendations when area changes
+        updateActualFertilizerRecommendationDashboard();
       });
     }
   });
@@ -836,6 +872,55 @@ function setupInteractiveButtons() {
     }
   });
 
+  // Connect new Soil Fertility Mapping Layer Selectors
+  const fertilityLayerIds = [
+    'layer-control-fertility-ph',
+    'layer-control-fertility-n',
+    'layer-control-fertility-p',
+    'layer-control-fertility-k',
+    'layer-control-fertility-c',
+    'layer-control-fertility-sfi'
+  ];
+
+  fertilityLayerIds.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) {
+      el.addEventListener('change', () => {
+        if (el.checked) {
+          // Keep fertility layer selections mutually exclusive for clean visualization
+          fertilityLayerIds.forEach(otherId => {
+            if (otherId !== id) {
+              const otherEl = document.getElementById(otherId);
+              if (otherEl) otherEl.checked = false;
+            }
+          });
+        }
+        applySpatialLayersToMap();
+      });
+    }
+  });
+
+  // Global handler for switching agronomic spatial interpolation algorithm
+  window.setFertilityAlgo = (algo) => {
+    const btnIDW = document.getElementById('btn-algo-idw');
+    const btnKriging = document.getElementById('btn-algo-kriging');
+    
+    if (algo === 'idw') {
+      if (btnIDW) btnIDW.className = 'px-2 py-0.5 rounded-md font-bold text-[8px] transition-all bg-white text-slate-800 shadow-3xs cursor-pointer active-algo';
+      if (btnKriging) btnKriging.className = 'px-2 py-0.5 rounded-md font-bold text-[8px] transition-all text-slate-500 hover:text-slate-850 cursor-pointer';
+    } else {
+      if (btnIDW) btnIDW.className = 'px-2 py-0.5 rounded-md font-bold text-[8px] transition-all text-slate-500 hover:text-slate-850 cursor-pointer';
+      if (btnKriging) btnKriging.className = 'px-2 py-0.5 rounded-md font-bold text-[8px] transition-all bg-white text-slate-800 shadow-3xs cursor-pointer active-algo';
+    }
+    
+    // Recalculate spatial layers and redraw
+    const map = getMapInstance();
+    if (map) {
+      recalculateSpatialLayers(map, allSamplesState);
+      applySpatialLayersToMap();
+    }
+  };
+
   // Export PDF Report Button
   const exportPdfBtn = document.getElementById('btn-export-pdf');
   if (exportPdfBtn) {
@@ -1072,6 +1157,15 @@ async function reloadAppData() {
     // 6. Push stats to new Spatial Analytics Dashboard
     updateSpatialDashboard(spatialStats);
 
+    // 6.7. Compute and render automated fertilizer recommendations
+    updateFertilizerDashboard();
+
+    // 6.8. Calculate and update Land Limiting Factors & Status Dashboard
+    updateLimitingFactorsDashboard();
+
+    // Recalculate actual fertilizer recommendations for land area
+    updateActualFertilizerRecommendationDashboard();
+
     // 6.5. Render Geostatistics and Kriging diagnostics dashboard
     renderGeostatisticsDashboard();
 
@@ -1119,6 +1213,28 @@ function computeSummaryStatistics() {
     minNameEl.textContent = 'Tidak ada data';
     maxEl.textContent = '-';
     maxNameEl.textContent = 'Tidak ada data';
+
+    // Reset fertility elements
+    const fph_avg = document.getElementById('fertility-ph-avg');
+    const fph_badge = document.getElementById('fertility-ph-badge');
+    const fn_avg = document.getElementById('fertility-n-avg');
+    const fn_badge = document.getElementById('fertility-n-badge');
+    const fp_avg = document.getElementById('fertility-p-avg');
+    const fp_badge = document.getElementById('fertility-p-badge');
+    const fk_avg = document.getElementById('fertility-k-avg');
+    const fk_badge = document.getElementById('fertility-k-badge');
+    const fc_avg = document.getElementById('fertility-c-avg');
+    const fc_badge = document.getElementById('fertility-c-badge');
+    if (fph_avg) fph_avg.textContent = '-';
+    if (fph_badge) { fph_badge.textContent = '-'; fph_badge.className = 'text-[8px] font-black px-1.5 py-0.5 rounded leading-none text-slate-700 bg-slate-100'; fph_badge.style = ''; }
+    if (fn_avg) fn_avg.textContent = '-';
+    if (fn_badge) { fn_badge.textContent = '-'; fn_badge.className = 'text-[8px] font-black px-1.5 py-0.5 rounded leading-none text-slate-700 bg-slate-100'; fn_badge.style = ''; }
+    if (fp_avg) fp_avg.textContent = '-';
+    if (fp_badge) { fp_badge.textContent = '-'; fp_badge.className = 'text-[8px] font-black px-1.5 py-0.5 rounded leading-none text-slate-700 bg-slate-100'; fp_badge.style = ''; }
+    if (fk_avg) fk_avg.textContent = '-';
+    if (fk_badge) { fk_badge.textContent = '-'; fk_badge.className = 'text-[8px] font-black px-1.5 py-0.5 rounded leading-none text-slate-700 bg-slate-100'; fk_badge.style = ''; }
+    if (fc_avg) fc_avg.textContent = '-';
+    if (fc_badge) { fc_badge.textContent = '-'; fc_badge.className = 'text-[8px] font-black px-1.5 py-0.5 rounded leading-none text-slate-700 bg-slate-100'; fc_badge.style = ''; }
     
     // Set global agronomy advice
     document.getElementById('analysis-remedy-text').textContent = 
@@ -1166,8 +1282,276 @@ function computeSummaryStatistics() {
   maxEl.textContent = maxVal.toFixed(1);
   maxNameEl.textContent = maxObj ? maxObj.nama : 'Tidak diketahui';
 
+  // Calculate advanced soil fertility averages
+  let nSum = 0, nCount = 0;
+  let pSum = 0, pCount = 0;
+  let kSum = 0, kCount = 0;
+  let cSum = 0, cCount = 0;
+
+  allSamplesState.forEach((s) => {
+    if (s.nitrogen !== undefined && s.nitrogen !== null && s.nitrogen !== '' && !isNaN(parseFloat(s.nitrogen))) {
+      nSum += parseFloat(s.nitrogen);
+      nCount++;
+    }
+    if (s.fosfor !== undefined && s.fosfor !== null && s.fosfor !== '' && !isNaN(parseFloat(s.fosfor))) {
+      pSum += parseFloat(s.fosfor);
+      pCount++;
+    }
+    if (s.kalium !== undefined && s.kalium !== null && s.kalium !== '' && !isNaN(parseFloat(s.kalium))) {
+      kSum += parseFloat(s.kalium);
+      kCount++;
+    }
+    if (s.cOrganik !== undefined && s.cOrganik !== null && s.cOrganik !== '' && !isNaN(parseFloat(s.cOrganik))) {
+      cSum += parseFloat(s.cOrganik);
+      cCount++;
+    }
+  });
+
+  const fphAvgEl = document.getElementById('fertility-ph-avg');
+  const fphBadgeEl = document.getElementById('fertility-ph-badge');
+  const nAvgEl = document.getElementById('fertility-n-avg');
+  const nBadgeEl = document.getElementById('fertility-n-badge');
+  const pAvgEl = document.getElementById('fertility-p-avg');
+  const pBadgeEl = document.getElementById('fertility-p-badge');
+  const kAvgEl = document.getElementById('fertility-k-avg');
+  const kBadgeEl = document.getElementById('fertility-k-badge');
+  const cAvgEl = document.getElementById('fertility-c-avg');
+  const cBadgeEl = document.getElementById('fertility-c-badge');
+
+  if (fphAvgEl && fphBadgeEl) {
+    if (allSamplesState.length > 0) {
+      fphAvgEl.textContent = avgValue.toFixed(2);
+      const catPH = classifyPH(avgValue);
+      if (catPH) {
+        fphBadgeEl.textContent = catPH.label;
+        fphBadgeEl.style.backgroundColor = catPH.bg;
+        fphBadgeEl.style.color = catPH.color;
+        fphBadgeEl.style.borderColor = catPH.border;
+        fphBadgeEl.className = "text-[8px] font-black px-1.5 py-0.5 rounded border leading-none";
+      }
+    } else {
+      fphAvgEl.textContent = '-';
+      fphBadgeEl.textContent = '-';
+      fphBadgeEl.style.backgroundColor = '';
+      fphBadgeEl.style.color = '';
+      fphBadgeEl.style.borderColor = '';
+      fphBadgeEl.className = "text-[8px] font-black px-1.5 py-0.5 rounded leading-none text-slate-700 bg-slate-100";
+    }
+  }
+
+  if (nAvgEl && nBadgeEl) {
+    if (nCount > 0) {
+      const avgN = nSum / nCount;
+      nAvgEl.textContent = `${avgN.toFixed(2)}%`;
+      const catN = classifyNitrogen(avgN);
+      if (catN) {
+        nBadgeEl.textContent = catN.label;
+        nBadgeEl.style.backgroundColor = catN.bg;
+        nBadgeEl.style.color = catN.color;
+        nBadgeEl.style.borderColor = catN.border;
+        nBadgeEl.className = "text-[8px] font-black px-1.5 py-0.5 rounded border leading-none";
+      }
+    } else {
+      nAvgEl.textContent = '-';
+      nBadgeEl.textContent = '-';
+      nBadgeEl.style.backgroundColor = '';
+      nBadgeEl.style.color = '';
+      nBadgeEl.style.borderColor = '';
+      nBadgeEl.className = "text-[8px] font-black px-1.5 py-0.5 rounded leading-none text-slate-700 bg-slate-100";
+    }
+  }
+
+  if (pAvgEl && pBadgeEl) {
+    if (pCount > 0) {
+      const avgP = pSum / pCount;
+      pAvgEl.textContent = `${avgP.toFixed(1)} ppm`;
+      const catP = classifyFosfor(avgP);
+      if (catP) {
+        pBadgeEl.textContent = catP.label;
+        pBadgeEl.style.backgroundColor = catP.bg;
+        pBadgeEl.style.color = catP.color;
+        pBadgeEl.style.borderColor = catP.border;
+        pBadgeEl.className = "text-[8px] font-black px-1.5 py-0.5 rounded border leading-none";
+      }
+    } else {
+      pAvgEl.textContent = '-';
+      pBadgeEl.textContent = '-';
+      pBadgeEl.style.backgroundColor = '';
+      pBadgeEl.style.color = '';
+      pBadgeEl.style.borderColor = '';
+      pBadgeEl.className = "text-[8px] font-black px-1.5 py-0.5 rounded leading-none text-slate-700 bg-slate-100";
+    }
+  }
+
+  if (kAvgEl && kBadgeEl) {
+    if (kCount > 0) {
+      const avgK = kSum / kCount;
+      kAvgEl.textContent = `${avgK.toFixed(1)} ppm`;
+      const catK = classifyKalium(avgK);
+      if (catK) {
+        kBadgeEl.textContent = catK.label;
+        kBadgeEl.style.backgroundColor = catK.bg;
+        kBadgeEl.style.color = catK.color;
+        kBadgeEl.style.borderColor = catK.border;
+        kBadgeEl.className = "text-[8px] font-black px-1.5 py-0.5 rounded border leading-none";
+      }
+    } else {
+      kAvgEl.textContent = '-';
+      kBadgeEl.textContent = '-';
+      kBadgeEl.style.backgroundColor = '';
+      kBadgeEl.style.color = '';
+      kBadgeEl.style.borderColor = '';
+      kBadgeEl.className = "text-[8px] font-black px-1.5 py-0.5 rounded leading-none text-slate-700 bg-slate-100";
+    }
+  }
+
+  if (cAvgEl && cBadgeEl) {
+    if (cCount > 0) {
+      const avgC = cSum / cCount;
+      cAvgEl.textContent = `${avgC.toFixed(2)}%`;
+      const catC = classifyCOrganik(avgC);
+      if (catC) {
+        cBadgeEl.textContent = catC.label;
+        cBadgeEl.style.backgroundColor = catC.bg;
+        cBadgeEl.style.color = catC.color;
+        cBadgeEl.style.borderColor = catC.border;
+        cBadgeEl.className = "text-[8px] font-black px-1.5 py-0.5 rounded border leading-none";
+      }
+    } else {
+      cAvgEl.textContent = '-';
+      cBadgeEl.textContent = '-';
+      cBadgeEl.style.backgroundColor = '';
+      cBadgeEl.style.color = '';
+      cBadgeEl.style.borderColor = '';
+      cBadgeEl.className = "text-[8px] font-black px-1.5 py-0.5 rounded leading-none text-slate-700 bg-slate-100";
+    }
+  }
+
   // Compute agronomy remediation advice
   computeAgronomyFarmingAdvice(avgValue);
+
+  // Update Soil Fertility Dashboard Cards (New)
+  updateFertilityDashboard();
+}
+
+/**
+ * Updates the new Soil Fertility Dashboard cards with colors and labels
+ */
+function updateFertilityDashboard() {
+  const avgPhEl = document.getElementById('fertility-avg-ph');
+  const avgNEl = document.getElementById('fertility-avg-n');
+  const avgPEl = document.getElementById('fertility-avg-p');
+  const avgKEl = document.getElementById('fertility-avg-k');
+  const avgCEl = document.getElementById('fertility-avg-c');
+
+  const indPhEl = document.getElementById('fertility-indicator-ph');
+  const indNEl = document.getElementById('fertility-indicator-n');
+  const indPEl = document.getElementById('fertility-indicator-p');
+  const indKEl = document.getElementById('fertility-indicator-k');
+  const indCEl = document.getElementById('fertility-indicator-c');
+
+  const lblPhEl = document.getElementById('fertility-label-ph');
+  const lblNEl = document.getElementById('fertility-label-n');
+  const lblPEl = document.getElementById('fertility-label-p');
+  const lblKEl = document.getElementById('fertility-label-k');
+  const lblCEl = document.getElementById('fertility-label-c');
+
+  if (!avgPhEl) return;
+
+  if (!allSamplesState || allSamplesState.length === 0) {
+    [avgPhEl, avgNEl, avgPEl, avgKEl, avgCEl].forEach(el => { if (el) el.textContent = '-'; });
+    [lblPhEl, lblNEl, lblPEl, lblKEl, lblCEl].forEach(el => { if (el) el.textContent = '-'; });
+    [indPhEl, indNEl, indPEl, indKEl, indCEl].forEach(el => {
+      if (el) {
+        el.className = 'w-2.5 h-10 rounded-full bg-slate-200 flex-shrink-0 transition-all duration-300';
+      }
+    });
+    return;
+  }
+
+  // Calculate averages
+  let sumPh = 0, sumN = 0, sumP = 0, sumK = 0, sumC = 0;
+  let countPh = 0, countN = 0, countP = 0, countK = 0, countC = 0;
+
+  allSamplesState.forEach(s => {
+    if (s.ph !== undefined && s.ph !== null && s.ph !== '' && !isNaN(parseFloat(s.ph))) {
+      sumPh += parseFloat(s.ph);
+      countPh++;
+    }
+    if (s.nitrogen !== undefined && s.nitrogen !== null && s.nitrogen !== '' && !isNaN(parseFloat(s.nitrogen))) {
+      sumN += parseFloat(s.nitrogen);
+      countN++;
+    }
+    if (s.fosfor !== undefined && s.fosfor !== null && s.fosfor !== '' && !isNaN(parseFloat(s.fosfor))) {
+      sumP += parseFloat(s.fosfor);
+      countP++;
+    }
+    if (s.kalium !== undefined && s.kalium !== null && s.kalium !== '' && !isNaN(parseFloat(s.kalium))) {
+      sumK += parseFloat(s.kalium);
+      countK++;
+    }
+    if (s.cOrganik !== undefined && s.cOrganik !== null && s.cOrganik !== '' && !isNaN(parseFloat(s.cOrganik))) {
+      sumC += parseFloat(s.cOrganik);
+      countC++;
+    }
+  });
+
+  const avgPh = countPh > 0 ? sumPh / countPh : 0;
+  const avgN = countN > 0 ? sumN / countN : 0;
+  const avgP = countP > 0 ? sumP / countP : 0;
+  const avgK = countK > 0 ? sumK / countK : 0;
+  const avgC = countC > 0 ? sumC / countC : 0;
+
+  // Render Average pH
+  if (countPh > 0) {
+    const res = classifyPH(avgPh);
+    avgPhEl.textContent = avgPh.toFixed(2);
+    if (lblPhEl) lblPhEl.textContent = res.label;
+    if (indPhEl) {
+      let col = 'bg-slate-350';
+      if (res.level === 'baik') col = 'bg-[#16a34a]';
+      else if (res.level === 'sedang') col = 'bg-[#d97706]';
+      else col = 'bg-[#dc2626]';
+      indPhEl.className = `w-2.5 h-10 rounded-full flex-shrink-0 transition-all duration-300 ${col}`;
+    }
+  } else {
+    avgPhEl.textContent = '-';
+    if (lblPhEl) lblPhEl.textContent = '-';
+    if (indPhEl) indPhEl.className = 'w-2.5 h-10 rounded-full bg-slate-200 flex-shrink-0';
+  }
+
+  const elIsPercentage = (cls) => cls === classifyNitrogen || cls === classifyCOrganik;
+
+  const updateCardValue = (count, val, classifier, elVal, elLbl, elInd, floatDigits) => {
+    if (!elVal) return;
+    if (count > 0) {
+      const res = classifier(val);
+      let suffix = '';
+      if (elIsPercentage(classifier)) {
+        suffix = '%';
+      } else if (classifier === classifyFosfor || classifier === classifyKalium) {
+        suffix = ' ppm';
+      }
+      elVal.textContent = val.toFixed(floatDigits) + suffix;
+      if (elLbl) elLbl.textContent = res.label;
+      if (elInd) {
+        let col = 'bg-slate-350';
+        if (res.level === 'baik') col = 'bg-[#16a34a]';
+        else if (res.level === 'sedang') col = 'bg-[#d97706]';
+        else col = 'bg-[#dc2626]';
+        elInd.className = `w-2.5 h-10 rounded-full flex-shrink-0 transition-all duration-300 ${col}`;
+      }
+    } else {
+      elVal.textContent = '-';
+      if (elLbl) elLbl.textContent = '-';
+      if (elInd) elInd.className = 'w-2.5 h-10 rounded-full bg-slate-200 flex-shrink-0';
+    }
+  };
+
+  updateCardValue(countN, avgN, classifyNitrogen, avgNEl, lblNEl, indNEl, 3);
+  updateCardValue(countP, avgP, classifyFosfor, avgPEl, lblPEl, indPEl, 1);
+  updateCardValue(countK, avgK, classifyKalium, avgKEl, lblKEl, indKEl, 1);
+  updateCardValue(countC, avgC, classifyCOrganik, avgCEl, lblCEl, indCEl, 2);
 }
 
 /**
@@ -1260,6 +1644,23 @@ function renderTableFiltered() {
     const { id, nama, latitude, longitude, ph, catatan } = sample;
     const cat = getPHCategory(ph);
     
+    const nVal = (sample.nitrogen !== undefined && sample.nitrogen !== null && sample.nitrogen !== '') ? `${parseFloat(sample.nitrogen).toFixed(2)}%` : '-';
+    const catN = (sample.nitrogen !== undefined && sample.nitrogen !== null && sample.nitrogen !== '') ? classifyNitrogen(parseFloat(sample.nitrogen)) : null;
+
+    const pVal = (sample.fosfor !== undefined && sample.fosfor !== null && sample.fosfor !== '') ? `${parseFloat(sample.fosfor).toFixed(1)}` : '-';
+    const catP = (sample.fosfor !== undefined && sample.fosfor !== null && sample.fosfor !== '') ? classifyFosfor(parseFloat(sample.fosfor)) : null;
+
+    const kVal = (sample.kalium !== undefined && sample.kalium !== null && sample.kalium !== '') ? `${parseFloat(sample.kalium).toFixed(1)}` : '-';
+    const catK = (sample.kalium !== undefined && sample.kalium !== null && sample.kalium !== '') ? classifyKalium(parseFloat(sample.kalium)) : null;
+
+    const cVal = (sample.cOrganik !== undefined && sample.cOrganik !== null && sample.cOrganik !== '') ? `${parseFloat(sample.cOrganik).toFixed(2)}%` : '-';
+    const catC = (sample.cOrganik !== undefined && sample.cOrganik !== null && sample.cOrganik !== '') ? classifyCOrganik(parseFloat(sample.cOrganik)) : null;
+    
+    const hasNutrisi = (sample.nitrogen !== undefined && sample.nitrogen !== null && sample.nitrogen !== '') ||
+                       (sample.fosfor !== undefined && sample.fosfor !== null && sample.fosfor !== '') ||
+                       (sample.kalium !== undefined && sample.kalium !== null && sample.kalium !== '') ||
+                       (sample.cOrganik !== undefined && sample.cOrganik !== null && sample.cOrganik !== '');
+
     const tr = document.createElement('tr');
     tr.id = `sample-row-${id}`;
     tr.className = 'hover:bg-slate-50 transition-colors border-b border-slate-100 align-middle';
@@ -1284,6 +1685,28 @@ function renderTableFiltered() {
         <span class="inline-flex px-2.5 py-1 rounded-full text-xxs font-black ${cat.badgeColor}">
           ${cat.label}
         </span>
+      </td>
+      <td class="px-6 py-4 text-center">
+        ${hasNutrisi ? `
+          <div class="inline-flex flex-col gap-0.5 bg-slate-50 border border-slate-200/60 rounded-lg p-1.5 min-w-[210px] shadow-3xs">
+            <div class="flex items-center justify-between gap-1 text-[9px] font-mono leading-tight">
+              <span class="text-slate-500 font-medium whitespace-nowrap">N: <b class="text-slate-800">${nVal}</b></span>
+              ${catN ? `<span style="color: ${catN.color};" class="text-[8px] font-black uppercase tracking-tight">${catN.label}</span>` : ''}
+              <span class="text-slate-300">|</span>
+              <span class="text-slate-500 font-medium whitespace-nowrap">P: <b class="text-slate-800">${pVal} <span class="text-[8px] text-slate-400">ppm</span></b></span>
+              ${catP ? `<span style="color: ${catP.color};" class="text-[8px] font-black uppercase tracking-tight">${catP.label}</span>` : ''}
+            </div>
+            <div class="flex items-center justify-between gap-1 text-[9px] font-mono leading-tight border-t border-slate-200/50 pt-1 mt-1">
+              <span class="text-slate-500 font-medium whitespace-nowrap">K: <b class="text-slate-800">${kVal} <span class="text-[8px] text-slate-400">ppm</span></b></span>
+              ${catK ? `<span style="color: ${catK.color};" class="text-[8px] font-black uppercase tracking-tight">${catK.label}</span>` : ''}
+              <span class="text-slate-300">|</span>
+              <span class="text-slate-500 font-medium whitespace-nowrap">C-Org: <b class="text-slate-800">${cVal}</b></span>
+              ${catC ? `<span style="color: ${catC.color};" class="text-[8px] font-black uppercase tracking-tight">${catC.label}</span>` : ''}
+            </div>
+          </div>
+        ` : `
+          <span class="text-slate-300 italic text-[11px]">-</span>
+        `}
       </td>
       <td class="px-6 py-4 max-w-[220px]">
         <p class="text-xxs-plus text-slate-500 leading-relaxed truncate-2-lines" title="${catatan || '-'}">
@@ -1378,6 +1801,11 @@ window.dispatchMapEdit = (id) => {
   document.getElementById('sample-ph').value = sample.ph.toFixed(1);
   document.getElementById('sample-ph-slider').value = sample.ph;
   document.getElementById('sample-catatan').value = sample.catatan || '';
+
+  document.getElementById('sample-nitrogen').value = (sample.nitrogen !== undefined && sample.nitrogen !== null) ? sample.nitrogen : '';
+  document.getElementById('sample-fosfor').value = (sample.fosfor !== undefined && sample.fosfor !== null) ? sample.fosfor : '';
+  document.getElementById('sample-kalium').value = (sample.kalium !== undefined && sample.kalium !== null) ? sample.kalium : '';
+  document.getElementById('sample-c-organik').value = (sample.cOrganik !== undefined && sample.cOrganik !== null) ? sample.cOrganik : '';
 
   // Restore photos to local buffer and UI preview
   currentFotoLokasi = sample.fotoLokasi || '';
@@ -1512,8 +1940,39 @@ function applySpatialLayersToMap() {
   const showChili = document.getElementById('layer-control-chili')?.checked ?? false;
   const showCucumber = document.getElementById('layer-control-cucumber')?.checked ?? false;
 
+  // New Soil Fertility Layers
+  const showFPh = document.getElementById('layer-control-fertility-ph')?.checked ?? false;
+  const showFN = document.getElementById('layer-control-fertility-n')?.checked ?? false;
+  const showFP = document.getElementById('layer-control-fertility-p')?.checked ?? false;
+  const showFK = document.getElementById('layer-control-fertility-k')?.checked ?? false;
+  const showFC = document.getElementById('layer-control-fertility-c')?.checked ?? false;
+  const showSfi = document.getElementById('layer-control-fertility-sfi')?.checked ?? false;
+
   const markerLayer = getMarkerLayerGroup();
-  const { heatmap, kriging, krigingError, chili, cucumber } = getSpatialLayerGroups();
+  const {
+    heatmap,
+    kriging,
+    krigingError,
+    chili,
+    cucumber,
+    fertilityPh,
+    nitrogen,
+    fosfor,
+    kalium,
+    cOrganik,
+    sfi
+  } = getSpatialLayerGroups();
+
+  // Helper toggle function
+  const toggleMapLayer = (layer, show) => {
+    if (layer) {
+      if (show) {
+        if (!map.hasLayer(layer)) map.addLayer(layer);
+      } else {
+        if (map.hasLayer(layer)) map.removeLayer(layer);
+      }
+    }
+  };
 
   // 1. Toggle Markers
   if (markerLayer) {
@@ -1525,61 +1984,42 @@ function applySpatialLayersToMap() {
   }
 
   // 2. Toggle Heatmap IDW
-  if (heatmap) {
-    if (showHeatmap) {
-      if (!map.hasLayer(heatmap)) map.addLayer(heatmap);
-    } else {
-      if (map.hasLayer(heatmap)) map.removeLayer(heatmap);
-    }
-  }
+  toggleMapLayer(heatmap, showHeatmap);
 
   // 2b. Toggle Kriging Prediction
-  if (kriging) {
-    if (showKriging) {
-      if (!map.hasLayer(kriging)) map.addLayer(kriging);
-    } else {
-      if (map.hasLayer(kriging)) map.removeLayer(kriging);
-    }
-  }
+  toggleMapLayer(kriging, showKriging);
 
   // 2c. Toggle Kriging Standard Error
-  if (krigingError) {
-    if (showKrigingErr) {
-      if (!map.hasLayer(krigingError)) map.addLayer(krigingError);
-    } else {
-      if (map.hasLayer(krigingError)) map.removeLayer(krigingError);
-    }
-  }
+  toggleMapLayer(krigingError, showKrigingErr);
 
   // 3. Toggle Chili Suitability
-  if (chili) {
-    if (showChili) {
-      if (!map.hasLayer(chili)) map.addLayer(chili);
-    } else {
-      if (map.hasLayer(chili)) map.removeLayer(chili);
-    }
-  }
+  toggleMapLayer(chili, showChili);
 
   // 4. Toggle Cucumber Suitability
-  if (cucumber) {
-    if (showCucumber) {
-      if (!map.hasLayer(cucumber)) map.addLayer(cucumber);
-    } else {
-      if (map.hasLayer(cucumber)) map.removeLayer(cucumber);
-    }
-  }
+  toggleMapLayer(cucumber, showCucumber);
+
+  // 4b. Toggle modern soil fertility layers
+  toggleMapLayer(fertilityPh, showFPh);
+  toggleMapLayer(nitrogen, showFN);
+  toggleMapLayer(fosfor, showFP);
+  toggleMapLayer(kalium, showFK);
+  toggleMapLayer(cOrganik, showFC);
+  toggleMapLayer(sfi, showSfi);
 
   // 5. Update Dynamic Legend content
-  updateDynamicLegend(showHeatmap, showChili, showCucumber, showKriging, showKrigingErr);
+  updateDynamicLegend(
+    showHeatmap, showChili, showCucumber, showKriging, showKrigingErr,
+    showFPh, showFN, showFP, showFK, showFC, showSfi
+  );
 }
 
 /**
  * Dynamically changes the floating legend entries and labels based on active checkboxes
  */
-/**
- * Dynamically changes the floating legend entries and labels based on active checkboxes
- */
-function updateDynamicLegend(showHeatmap, showChili, showCucumber, showKriging, showKrigingErr) {
+function updateDynamicLegend(
+  showHeatmap, showChili, showCucumber, showKriging, showKrigingErr,
+  showFPh, showFN, showFP, showFK, showFC, showSfi
+) {
   const titleEl = document.getElementById('legend-dynamic-title');
   const itemsEl = document.getElementById('legend-dynamic-items');
   if (!titleEl || !itemsEl) return;
@@ -1664,6 +2104,110 @@ function updateDynamicLegend(showHeatmap, showChili, showCucumber, showKriging, 
         <span class="text-slate-800 font-semibold text-xxs">Basa (> 7.5)</span>
       </div>
     `;
+  } else if (showFPh) {
+    titleEl.textContent = 'Legenda pH Agronomi';
+    itemsEl.innerHTML = `
+      <div class="flex items-center gap-2">
+        <span class="w-3 h-3 rounded-md inline-block bg-[#dc2626] border border-white shadow"></span>
+        <span class="text-slate-800 font-semibold text-xxs">Masam / Rendah (< 5.5)</span>
+      </div>
+      <div class="flex items-center gap-2">
+        <span class="w-3 h-3 rounded-md inline-block bg-[#d97706] border border-white shadow"></span>
+        <span class="text-slate-800 font-semibold text-xxs">Agak Masam & Alkali / Sedang (5.5 - 5.9 / > 7.0)</span>
+      </div>
+      <div class="flex items-center gap-2">
+        <span class="w-3 h-3 rounded-md inline-block bg-[#16a34a] border border-white shadow"></span>
+        <span class="text-slate-800 font-semibold text-xxs">Netral / Baik (6.0 - 7.0)</span>
+      </div>
+    `;
+  } else if (showFN) {
+    titleEl.textContent = 'Legenda Nitrogen (%)';
+    itemsEl.innerHTML = `
+      <div class="flex items-center gap-2">
+        <span class="w-3 h-3 rounded-md inline-block bg-[#dc2626] border border-white shadow"></span>
+        <span class="text-slate-800 font-semibold text-xxs">Rendah / Sangat Rendah (< 0.21%)</span>
+      </div>
+      <div class="flex items-center gap-2">
+        <span class="w-3 h-3 rounded-md inline-block bg-[#d97706] border border-white shadow"></span>
+        <span class="text-slate-800 font-semibold text-xxs">Sedang (0.21% - 0.50%)</span>
+      </div>
+      <div class="flex items-center gap-2">
+        <span class="w-3 h-3 rounded-md inline-block bg-[#16a34a] border border-white shadow"></span>
+        <span class="text-slate-800 font-semibold text-xxs">Baik / Tinggi (> 0.50%)</span>
+      </div>
+    `;
+  } else if (showFP) {
+    titleEl.textContent = 'Legenda Fosfor (ppm)';
+    itemsEl.innerHTML = `
+      <div class="flex items-center gap-2">
+        <span class="w-3 h-3 rounded-md inline-block bg-[#dc2626] border border-white shadow"></span>
+        <span class="text-slate-800 font-semibold text-xxs">Rendah / Sangat Rendah (< 21.0 ppm)</span>
+      </div>
+      <div class="flex items-center gap-2">
+        <span class="w-3 h-3 rounded-md inline-block bg-[#d97706] border border-white shadow"></span>
+        <span class="text-slate-800 font-semibold text-xxs">Sedang (21.0 - 40.0 ppm)</span>
+      </div>
+      <div class="flex items-center gap-2">
+        <span class="w-3 h-3 rounded-md inline-block bg-[#16a34a] border border-white shadow"></span>
+        <span class="text-slate-800 font-semibold text-xxs">Baik / Tinggi (> 40.0 ppm)</span>
+      </div>
+    `;
+  } else if (showFK) {
+    titleEl.textContent = 'Legenda Kalium (ppm)';
+    itemsEl.innerHTML = `
+      <div class="flex items-center gap-2">
+        <span class="w-3 h-3 rounded-md inline-block bg-[#dc2626] border border-white shadow"></span>
+        <span class="text-slate-800 font-semibold text-xxs">Rendah / Sangat Rendah (< 101.0 ppm)</span>
+      </div>
+      <div class="flex items-center gap-2">
+        <span class="w-3 h-3 rounded-md inline-block bg-[#d97706] border border-white shadow"></span>
+        <span class="text-slate-800 font-semibold text-xxs">Sedang (101.0 - 200.0 ppm)</span>
+      </div>
+      <div class="flex items-center gap-2">
+        <span class="w-3 h-3 rounded-md inline-block bg-[#16a34a] border border-white shadow"></span>
+        <span class="text-slate-800 font-semibold text-xxs">Baik / Tinggi (> 200.0 ppm)</span>
+      </div>
+    `;
+  } else if (showFC) {
+    titleEl.textContent = 'Legenda C-Organik (%)';
+    itemsEl.innerHTML = `
+      <div class="flex items-center gap-2">
+        <span class="w-3 h-3 rounded-md inline-block bg-[#dc2626] border border-white shadow"></span>
+        <span class="text-slate-800 font-semibold text-xxs">Rendah / Sangat Rendah (< 2.01%)</span>
+      </div>
+      <div class="flex items-center gap-2">
+        <span class="w-3 h-3 rounded-md inline-block bg-[#d97706] border border-white shadow"></span>
+        <span class="text-slate-800 font-semibold text-xxs">Sedang (2.01% - 3.00%)</span>
+      </div>
+      <div class="flex items-center gap-2">
+        <span class="w-3 h-3 rounded-md inline-block bg-[#16a34a] border border-white shadow"></span>
+        <span class="text-slate-800 font-semibold text-xxs">Baik / Tinggi (> 3.00%)</span>
+      </div>
+    `;
+  } else if (showSfi) {
+    titleEl.textContent = 'Legenda SFI Lahan';
+    itemsEl.innerHTML = `
+      <div class="flex items-center gap-2">
+        <span class="w-3 h-3 rounded-md inline-block bg-[#16a34a] border border-white shadow"></span>
+        <span class="text-slate-800 font-semibold text-xxs">Sangat Subur (80 - 100)</span>
+      </div>
+      <div class="flex items-center gap-2">
+        <span class="w-3 h-3 rounded-md inline-block bg-[#22c55e] border border-white shadow"></span>
+        <span class="text-slate-800 font-semibold text-xxs">Subur (60 - 79)</span>
+      </div>
+      <div class="flex items-center gap-2">
+        <span class="w-3 h-3 rounded-md inline-block bg-[#fbbf24] border border-white shadow"></span>
+        <span class="text-slate-800 font-semibold text-xxs">Sedang (40 - 59)</span>
+      </div>
+      <div class="flex items-center gap-2">
+        <span class="w-3 h-3 rounded-md inline-block bg-[#f97316] border border-white shadow"></span>
+        <span class="text-slate-800 font-semibold text-xxs">Kurang Subur (20 - 39)</span>
+      </div>
+      <div class="flex items-center gap-2">
+        <span class="w-3 h-3 rounded-md inline-block bg-[#ef4444] border border-white shadow"></span>
+        <span class="text-slate-800 font-semibold text-xxs">Tidak Subur (0 - 19)</span>
+      </div>
+    `;
   } else {
     // Default or Heatmap pH
     titleEl.textContent = 'Legenda pH Tanah';
@@ -1699,6 +2243,16 @@ function updateSpatialDashboard(stats) {
   const dolomiteAvgEl = document.getElementById('spatial-dolomite-avg');
   const dolomiteRangeEl = document.getElementById('spatial-dolomite-range');
 
+  const sfiOverallValueEl = document.getElementById('sfi-overall-value');
+  const sfiBadgeEl = document.getElementById('sfi-badge');
+  const sfiAreaSangatSuburEl = document.getElementById('sfi-area-sangat-subur');
+  const sfiAreaSuburEl = document.getElementById('sfi-area-subur');
+  const sfiAreaSedangEl = document.getElementById('sfi-area-sedang');
+  const sfiAreaKurangEl = document.getElementById('sfi-area-kurang');
+  const sfiAreaTidakEl = document.getElementById('sfi-area-tidak');
+  const sfiStatMinEl = document.getElementById('sfi-stat-min');
+  const sfiStatMaxEl = document.getElementById('sfi-stat-max');
+
   if (!chiliSuitableAreaEl) return;
 
   if (!stats || stats.totalAreaHa === 0) {
@@ -1708,6 +2262,20 @@ function updateSpatialDashboard(stats) {
     unsuitablePercentEl.textContent = '-';
     if (dolomiteAvgEl) dolomiteAvgEl.textContent = '-';
     if (dolomiteRangeEl) dolomiteRangeEl.textContent = 'Min: - / Max: - t/Ha';
+
+    if (sfiOverallValueEl) sfiOverallValueEl.textContent = '-';
+    if (sfiBadgeEl) {
+      sfiBadgeEl.textContent = '-';
+      sfiBadgeEl.className = 'inline-block px-3 py-1 text-xs font-black rounded-lg text-slate-700 bg-slate-200';
+      sfiBadgeEl.style.backgroundColor = '';
+    }
+    if (sfiAreaSangatSuburEl) sfiAreaSangatSuburEl.textContent = '0.00 Ha';
+    if (sfiAreaSuburEl) sfiAreaSuburEl.textContent = '0.00 Ha';
+    if (sfiAreaSedangEl) sfiAreaSedangEl.textContent = '0.00 Ha';
+    if (sfiAreaKurangEl) sfiAreaKurangEl.textContent = '0.00 Ha';
+    if (sfiAreaTidakEl) sfiAreaTidakEl.textContent = '0.00 Ha';
+    if (sfiStatMinEl) sfiStatMinEl.textContent = '-';
+    if (sfiStatMaxEl) sfiStatMaxEl.textContent = '-';
     return;
   }
 
@@ -1721,6 +2289,638 @@ function updateSpatialDashboard(stats) {
   }
   if (dolomiteRangeEl) {
     dolomiteRangeEl.textContent = `Min: ${stats.minDolomite.toFixed(1)} / Max: ${stats.maxDolomite.toFixed(1)} t/Ha`;
+  }
+
+  if (sfiOverallValueEl && stats.sfiAvg !== undefined) {
+    sfiOverallValueEl.textContent = stats.sfiAvg.toFixed(1);
+    const cls = classifySFI(stats.sfiAvg);
+    if (sfiBadgeEl && cls) {
+      sfiBadgeEl.textContent = cls.label;
+      sfiBadgeEl.className = `inline-block px-3 py-1 text-xs font-black rounded-lg text-white`;
+      sfiBadgeEl.style.backgroundColor = cls.color;
+    }
+  }
+
+  if (sfiAreaSangatSuburEl) sfiAreaSangatSuburEl.textContent = `${(stats.sfiAreaSangatSuburHa || 0).toFixed(2)} Ha`;
+  if (sfiAreaSuburEl) sfiAreaSuburEl.textContent = `${(stats.sfiAreaSuburHa || 0).toFixed(2)} Ha`;
+  if (sfiAreaSedangEl) sfiAreaSedangEl.textContent = `${(stats.sfiAreaSedangHa || 0).toFixed(2)} Ha`;
+  if (sfiAreaKurangEl) sfiAreaKurangEl.textContent = `${(stats.sfiAreaKurangSuburHa || 0).toFixed(2)} Ha`;
+  if (sfiAreaTidakEl) sfiAreaTidakEl.textContent = `${(stats.sfiAreaTidakSuburHa || 0).toFixed(2)} Ha`;
+
+  if (sfiStatMinEl) sfiStatMinEl.textContent = stats.sfiMin !== undefined ? stats.sfiMin.toFixed(1) : '-';
+  if (sfiStatMaxEl) sfiStatMaxEl.textContent = stats.sfiMax !== undefined ? stats.sfiMax.toFixed(1) : '-';
+}
+
+/**
+ * Computes average soil parameters and updates the automatic fertilizer recommendation system.
+ */
+function updateFertilizerDashboard() {
+  if (!allSamplesState || allSamplesState.length === 0) {
+    setFertilizerDashboardReset();
+    return;
+  }
+
+  let phSum = 0, phCount = 0;
+  let nSum = 0, nCount = 0;
+  let pSum = 0, pCount = 0;
+  let kSum = 0, kCount = 0;
+  let cSum = 0, cCount = 0;
+
+  allSamplesState.forEach(s => {
+    if (s.ph !== undefined && s.ph !== null && s.ph !== '' && !isNaN(parseFloat(s.ph))) {
+      phSum += parseFloat(s.ph);
+      phCount++;
+    }
+    if (s.nitrogen !== undefined && s.nitrogen !== null && s.nitrogen !== '' && !isNaN(parseFloat(s.nitrogen))) {
+      nSum += parseFloat(s.nitrogen);
+      nCount++;
+    }
+    if (s.fosfor !== undefined && s.fosfor !== null && s.fosfor !== '' && !isNaN(parseFloat(s.fosfor))) {
+      pSum += parseFloat(s.fosfor);
+      pCount++;
+    }
+    if (s.kalium !== undefined && s.kalium !== null && s.kalium !== '' && !isNaN(parseFloat(s.kalium))) {
+      kSum += parseFloat(s.kalium);
+      kCount++;
+    }
+    if (s.cOrganik !== undefined && s.cOrganik !== null && s.cOrganik !== '' && !isNaN(parseFloat(s.cOrganik))) {
+      cSum += parseFloat(s.cOrganik);
+      cCount++;
+    }
+  });
+
+  const avgPh = phCount > 0 ? phSum / phCount : 6.5;
+  const avgN = nCount > 0 ? nSum / nCount : 0.25;
+  const avgP = pCount > 0 ? pSum / pCount : 25.0;
+  const avgK = kCount > 0 ? kSum / kCount : 125.0;
+  const avgC = cCount > 0 ? cSum / cCount : 1.8;
+
+  // Compute recommendation
+  const rec = getFertilizerRecommendation(avgPh, avgN, avgP, avgK, avgC);
+
+  // Bind values
+  const limitingTitleEl = document.getElementById('recommendation-limiting-title');
+  const limitingDescEl = document.getElementById('recommendation-limiting-desc');
+  const limitingBadgeEl = document.getElementById('recommendation-limiting-badge');
+  const lowestNameEl = document.getElementById('recommendation-lowest-param-name');
+  const lowestValEl = document.getElementById('recommendation-lowest-param-value');
+  const lowestStatusEl = document.getElementById('recommendation-lowest-param-status');
+
+  if (limitingTitleEl) limitingTitleEl.textContent = rec.limitingFactor.title;
+  if (limitingDescEl) limitingDescEl.textContent = rec.limitingFactor.desc;
+  if (limitingBadgeEl) {
+    limitingBadgeEl.textContent = rec.limitingFactor.name;
+    limitingBadgeEl.style.backgroundColor = rec.limitingFactor.color + '15';
+    limitingBadgeEl.style.color = rec.limitingFactor.color;
+  }
+
+  if (lowestNameEl) lowestNameEl.textContent = rec.lowestParam.name;
+  if (lowestValEl) lowestValEl.textContent = rec.lowestParam.valStr;
+  if (lowestStatusEl) {
+    lowestStatusEl.textContent = rec.lowestParam.label;
+    lowestStatusEl.style.backgroundColor = rec.lowestParam.color + '15';
+    lowestStatusEl.style.color = rec.lowestParam.color;
+  }
+
+  // Dosage cards binding
+  const dUrea = document.getElementById('recommendation-dose-urea');
+  const rUrea = document.getElementById('recommendation-reason-urea');
+  const dSP = document.getElementById('recommendation-dose-sp36');
+  const rSP = document.getElementById('recommendation-reason-sp36');
+  const dKCl = document.getElementById('recommendation-dose-kcl');
+  const rKCl = document.getElementById('recommendation-reason-kcl');
+  const dDol = document.getElementById('recommendation-dose-dolomit');
+  const rDol = document.getElementById('recommendation-reason-dolomit');
+  const dOrg = document.getElementById('recommendation-dose-organik');
+  const rOrg = document.getElementById('recommendation-reason-organik');
+
+  const getSafeDoseVal = (element) => {
+    if (element === null || element === undefined) return 0;
+    let numeric = 0;
+    if (typeof element === 'object') {
+      numeric = Number(element.val !== undefined ? element.val : 0);
+    } else {
+      numeric = Number(element);
+    }
+    return isNaN(numeric) ? 0 : numeric;
+  };
+
+  const safeUreaVal = getSafeDoseVal(rec?.dosages?.urea);
+  const safeSP36Val = getSafeDoseVal(rec?.dosages?.sp36);
+  const safeKClVal = getSafeDoseVal(rec?.dosages?.kcl);
+  const safeDolomitVal = getSafeDoseVal(rec?.dosages?.dolomit);
+  const safeOrganikVal = getSafeDoseVal(rec?.dosages?.organik || rec?.dosages?.kompos);
+
+  if (dUrea) dUrea.innerHTML = `<span class="text-3xl font-black text-slate-800">${safeUreaVal.toFixed(0)}</span> <sub class="text-xs font-bold text-slate-400">kg/Ha</sub>`;
+  if (rUrea) rUrea.textContent = rec?.dosages?.urea?.reason || "";
+
+  if (dSP) dSP.innerHTML = `<span class="text-3xl font-black text-slate-800">${safeSP36Val.toFixed(0)}</span> <sub class="text-xs font-bold text-slate-400">kg/Ha</sub>`;
+  if (rSP) rSP.textContent = rec?.dosages?.sp36?.reason || "";
+
+  if (dKCl) dKCl.innerHTML = `<span class="text-3xl font-black text-slate-800">${safeKClVal.toFixed(0)}</span> <sub class="text-xs font-bold text-slate-400">kg/Ha</sub>`;
+  if (rKCl) rKCl.textContent = rec?.dosages?.kcl?.reason || "";
+
+  if (dDol) dDol.innerHTML = `<span class="text-3xl font-black text-slate-800">${safeDolomitVal.toFixed(1)}</span> <sub class="text-xs font-bold text-slate-400">t/Ha</sub>`;
+  if (rDol) rDol.textContent = rec?.dosages?.dolomit?.reason || "";
+
+  if (dOrg) dOrg.innerHTML = `<span class="text-3xl font-black text-slate-800">${safeOrganikVal.toFixed(0)}</span> <sub class="text-xs font-bold text-slate-400">t/Ha</sub>`;
+  if (rOrg) rOrg.textContent = rec?.dosages?.organik?.reason || rec?.dosages?.kompos?.reason || "";
+
+  // Map step action items
+  const actionsContainer = document.getElementById('recommendation-actions-container');
+  if (actionsContainer) {
+    actionsContainer.innerHTML = '';
+    rec.actionsList.forEach(action => {
+      const actCard = document.createElement('div');
+      actCard.className = 'bg-white p-3.5 rounded-xl border border-slate-200/80 shadow-3xs flex flex-col gap-1.5 transition hover:shadow-xs';
+      actCard.innerHTML = `
+        <div class="flex items-center gap-2">
+          <span class="w-5 h-5 flex items-center justify-center rounded-full bg-emerald-600 text-white font-black text-[10px] shrink-0">
+            ${action.step}
+          </span>
+          <div class="min-w-0">
+            <span class="text-[9px] text-slate-400 font-extrabold uppercase tracking-wider block leading-none">${action.sub}</span>
+          </div>
+        </div>
+        <h4 class="text-xs font-black text-slate-850 leading-snug mt-1">${action.title}</h4>
+        <p class="text-[10px] text-slate-500 leading-relaxed mt-1">${action.desc}</p>
+      `;
+      actionsContainer.appendChild(actCard);
+    });
+  }
+}
+
+/**
+ * Resets the fertilizer elements to default placeholders.
+ */
+function setFertilizerDashboardReset() {
+  const limitingTitleEl = document.getElementById('recommendation-limiting-title');
+  const limitingDescEl = document.getElementById('recommendation-limiting-desc');
+  const limitingBadgeEl = document.getElementById('recommendation-limiting-badge');
+  const lowestNameEl = document.getElementById('recommendation-lowest-param-name');
+  const lowestValEl = document.getElementById('recommendation-lowest-param-value');
+  const lowestStatusEl = document.getElementById('recommendation-lowest-param-status');
+
+  if (limitingTitleEl) limitingTitleEl.textContent = 'Data Sampel Belum Tersedia';
+  if (limitingDescEl) limitingDescEl.textContent = 'Masukkan data sampel tanah multi-parameter terlebih dahulu agar algoritma presisi agronomi dapat memetakan hara kritis lahan Anda.';
+  if (limitingBadgeEl) {
+    limitingBadgeEl.textContent = 'Dibutuhkan Data';
+    limitingBadgeEl.style.backgroundColor = '';
+    limitingBadgeEl.style.color = '';
+  }
+
+  if (lowestNameEl) lowestNameEl.textContent = 'Parameter';
+  if (lowestValEl) lowestValEl.textContent = '-';
+  if (lowestStatusEl) {
+    lowestStatusEl.textContent = 'Kosong';
+    lowestStatusEl.style.backgroundColor = '';
+    lowestStatusEl.style.color = '';
+  }
+
+  const dUrea = document.getElementById('recommendation-dose-urea');
+  const rUrea = document.getElementById('recommendation-reason-urea');
+  const dSP = document.getElementById('recommendation-dose-sp36');
+  const rSP = document.getElementById('recommendation-reason-sp36');
+  const dKCl = document.getElementById('recommendation-dose-kcl');
+  const rKCl = document.getElementById('recommendation-reason-kcl');
+  const dDol = document.getElementById('recommendation-dose-dolomit');
+  const rDol = document.getElementById('recommendation-reason-dolomit');
+  const dOrg = document.getElementById('recommendation-dose-organik');
+  const rOrg = document.getElementById('recommendation-reason-organik');
+
+  if (dUrea) dUrea.textContent = '-';
+  if (rUrea) rUrea.textContent = 'Menunggu data...';
+  if (dSP) dSP.textContent = '-';
+  if (rSP) rSP.textContent = 'Menunggu data...';
+  if (dKCl) dKCl.textContent = '-';
+  if (rKCl) rKCl.textContent = 'Menunggu data...';
+  if (dDol) dDol.textContent = '-';
+  if (rDol) rDol.textContent = 'Menunggu data...';
+  if (dOrg) dOrg.textContent = '-';
+  if (rOrg) rOrg.textContent = 'Menunggu data...';
+
+  const actionsContainer = document.getElementById('recommendation-actions-container');
+  if (actionsContainer) {
+    actionsContainer.innerHTML = `
+      <div class="col-span-full text-xs font-bold text-slate-400 italic py-2 text-center">Silakan tambahkan data sampel di panel navigasi peta...</div>
+    `;
+  }
+}
+
+/**
+ * Updates the Land Limiting Factor and Land Status dashboard automatically
+ */
+function updateLimitingFactorsDashboard() {
+  const result = analyzeLimitingFactors(allSamplesState);
+
+  const listContainer = document.getElementById('limiting-factors-list-container');
+  const statusBadge = document.getElementById('limiting-status-badge');
+  const statusCard = document.getElementById('limiting-status-card');
+  const statusDesc = document.getElementById('limiting-status-desc');
+  const recContainer = document.getElementById('limiting-recommendations-container');
+
+  if (!allSamplesState || allSamplesState.length === 0) {
+    if (listContainer) {
+      listContainer.innerHTML = `
+        <div class="text-xs text-slate-400 italic text-center py-6">
+          Belum ada sampel tanah terpetakan. Tambahkan sampel di peta terlebih dahulu.
+        </div>
+      `;
+    }
+    if (statusBadge) {
+      statusBadge.innerHTML = '⚪ Belum Ada Data';
+      statusBadge.style.color = '#475569';
+      statusBadge.style.backgroundColor = '#f1f5f9';
+      statusBadge.style.borderColor = '#cbd5e1';
+    }
+    if (statusCard) {
+      statusCard.style.backgroundColor = '#ffffff';
+      statusCard.style.borderColor = '#e2e8f0';
+    }
+    if (statusDesc) {
+      statusDesc.textContent = "Silakan tambah titik sampel tanah multi-parameter untuk mendiagnosis faktor pembatas lahan Anda.";
+    }
+    if (recContainer) {
+      recContainer.innerHTML = `
+        <div class="text-xs text-slate-400 italic text-center py-6">
+          Menunggu kalkulasi parameter tanah...
+        </div>
+      `;
+    }
+    return;
+  }
+
+  // Update Status Lahan Card
+  const st = result.landStatus;
+  if (statusBadge) {
+    let emoji = '🟢';
+    if (st.code === 'BERMASALAH') emoji = '🔴';
+    else if (st.code === 'PERLU_PERBAIKAN') emoji = '🟡';
+    
+    statusBadge.innerHTML = `<span class="mr-1">${emoji}</span> ${st.label}`;
+    statusBadge.style.color = st.color;
+    statusBadge.style.backgroundColor = st.bg;
+    statusBadge.style.borderColor = st.border;
+  }
+  if (statusCard) {
+    statusCard.style.backgroundColor = st.bg + '15'; // Very transparent, aesthetic background tint
+    statusCard.style.borderColor = st.border;
+  }
+  if (statusDesc) {
+    statusDesc.textContent = st.desc;
+  }
+
+  // Update sorted factors list
+  if (listContainer) {
+    listContainer.innerHTML = '';
+    result.factors.forEach((f, i) => {
+      let scoreBadgeColor = 'bg-slate-100 text-slate-700';
+      if (f.score <= 1) scoreBadgeColor = 'bg-red-50 text-red-600 border border-red-200/50';
+      else if (f.score === 2) scoreBadgeColor = 'bg-red-50/50 text-rose-500 border border-rose-200/40';
+      else if (f.score === 3) scoreBadgeColor = 'bg-amber-50 text-amber-700 border border-amber-200/50';
+      else if (f.score >= 4) scoreBadgeColor = 'bg-emerald-50 text-emerald-700 border border-emerald-200/50';
+
+      const row = document.createElement('div');
+      row.className = "flex items-center justify-between p-3.5 rounded-xl border border-slate-100 bg-white/40 hover:bg-slate-50 transition duration-150";
+      row.innerHTML = `
+        <div class="flex items-center gap-3 min-w-0">
+          <span class="text-base shrink-0 select-none">${f.rankEmoji}</span>
+          <div class="min-w-0">
+            <h4 class="text-xs font-black text-slate-850 leading-none">${f.name}</h4>
+            <span class="text-[10px] text-slate-400 font-bold block mt-1 leading-none">Rata-rata: ${f.valStr}</span>
+          </div>
+        </div>
+        <div class="flex items-center gap-2">
+          <span class="text-[9px] text-slate-400 font-extrabold uppercase">Nilai ${f.score}/5</span>
+          <span class="px-2 py-0.5 text-[9px] font-black rounded-md ${scoreBadgeColor}">${f.label}</span>
+        </div>
+      `;
+      listContainer.appendChild(row);
+    });
+  }
+
+  // Update recommendations automatic list
+  if (recContainer) {
+    recContainer.innerHTML = '';
+    const criticalFactors = result.factors.filter(f => f.score < 4);
+    
+    if (criticalFactors.length === 0) {
+      recContainer.innerHTML = `
+        <div class="bg-emerald-50/20 p-4 rounded-xl border border-emerald-100 flex items-start gap-3">
+          <span class="text-lg">🎉</span>
+          <div>
+            <h4 class="text-xs font-black text-emerald-800">Semua Parameter Optimal!</h4>
+            <p class="text-[10px] text-emerald-600/90 leading-relaxed mt-1">Lahan Anda tidak memiliki faktor pembatas kritis yang mendesak. Seluruh hara makro dan mikro berafiliasi dalam status optimal.</p>
+          </div>
+        </div>
+      `;
+    } else {
+      criticalFactors.forEach(f => {
+        let alertBg = 'bg-amber-50/40 border-amber-200';
+        let textClass = 'text-amber-800';
+        let descClass = 'text-slate-600';
+        let icon = '⚠️';
+        
+        if (f.score <= 1) {
+          alertBg = 'bg-red-50/20 border-red-200';
+          textClass = 'text-red-700';
+          descClass = 'text-slate-700';
+          icon = '🚨';
+        }
+        
+        const recCard = document.createElement('div');
+        recCard.className = `p-3.5 rounded-xl border ${alertBg} flex items-start gap-3 transition hover:shadow-xs`;
+        recCard.innerHTML = `
+          <span class="text-sm shrink-0 mt-0.5 select-none">${icon}</span>
+          <div class="min-w-0">
+            <h5 class="text-xs font-black ${textClass} leading-none flex items-center gap-1.5">
+              Rekomendasi Tindakan: ${f.name}
+              <span class="text-[8px] font-extrabold uppercase px-1.5 py-0.2 rounded bg-white/60">Prioritas</span>
+            </h5>
+            <p class="text-[10px] ${descClass} leading-relaxed mt-1.5">${f.recommendation}</p>
+          </div>
+        `;
+        recContainer.appendChild(recCard);
+      });
+    }
+  }
+}
+
+/**
+ * Recalculates and updates the Rencana Pemupukan Dashboard based on real-time soil values and land area size
+ */
+function updateActualFertilizerRecommendationDashboard() {
+  // 1. Calculate average soil parameters
+  let phSum = 0, phCount = 0;
+  let nSum = 0, nCount = 0;
+  let pSum = 0, pCount = 0;
+  let kSum = 0, kCount = 0;
+  let cSum = 0, cCount = 0;
+
+  allSamplesState.forEach(s => {
+    if (s.ph !== undefined && s.ph !== null && s.ph !== '' && !isNaN(parseFloat(s.ph))) {
+      phSum += parseFloat(s.ph);
+      phCount++;
+    }
+    if (s.nitrogen !== undefined && s.nitrogen !== null && s.nitrogen !== '' && !isNaN(parseFloat(s.nitrogen))) {
+      nSum += parseFloat(s.nitrogen);
+      nCount++;
+    }
+    if (s.fosfor !== undefined && s.fosfor !== null && s.fosfor !== '' && !isNaN(parseFloat(s.fosfor))) {
+      pSum += parseFloat(s.fosfor);
+      pCount++;
+    }
+    if (s.kalium !== undefined && s.kalium !== null && s.kalium !== '' && !isNaN(parseFloat(s.kalium))) {
+      kSum += parseFloat(s.kalium);
+      kCount++;
+    }
+    if (s.cOrganik !== undefined && s.cOrganik !== null && s.cOrganik !== '' && !isNaN(parseFloat(s.cOrganik))) {
+      cSum += parseFloat(s.cOrganik);
+      cCount++;
+    }
+  });
+
+  const avgPh = phCount > 0 ? phSum / phCount : 6.0;
+  const avgN = nCount > 0 ? nSum / nCount : 0.20;
+  const avgP = pCount > 0 ? pSum / pCount : 25.0;
+  const avgK = kCount > 0 ? kSum / kCount : 120.0;
+  const avgC = cCount > 0 ? cSum / cCount : 2.0;
+
+  // 2. Fetch land area from input field or storage
+  const metaLuas = document.getElementById('meta-luas');
+  const landAreaHa = metaLuas ? Math.max(0.01, parseFloat(metaLuas.value) || 1.0) : 1.0;
+
+  // 3. Compute recommendations
+  const rec = calculateFertilizerRecommendation(avgPh, avgN, avgP, avgK, avgC, landAreaHa);
+
+  // 4. Update the DOM elements on the fertilizer plan dashboard card
+  const ureaPerHa = document.getElementById('rec-urea-per-ha');
+  const ureaKg = document.getElementById('rec-urea-kg');
+  const ureaTon = document.getElementById('rec-urea-ton');
+  const ureaZak = document.getElementById('rec-urea-zak');
+
+  if (ureaPerHa) ureaPerHa.textContent = `Dosis: ${rec.urea.perHa} kg/Ha (Status N: ${rec.statuses.nitrogen})`;
+  if (ureaKg) ureaKg.textContent = rec.urea.valStrKg;
+  if (ureaTon) ureaTon.textContent = `(${rec.urea.valStrTon})`;
+  if (ureaZak) ureaZak.textContent = `${rec.urea.valStrZak}`;
+
+  const dolomitPerHa = document.getElementById('rec-dolomit-per-ha');
+  const dolomitKg = document.getElementById('rec-dolomit-kg');
+  const dolomitTon = document.getElementById('rec-dolomit-ton');
+  const dolomitZak = document.getElementById('rec-dolomit-zak');
+
+  if (dolomitPerHa) dolomitPerHa.textContent = `Dosis: ${rec.dolomit.perHa} kg/Ha (Status pH: ${rec.statuses.ph})`;
+  if (dolomitKg) dolomitKg.textContent = rec.dolomit.valStrKg;
+  if (dolomitTon) dolomitTon.textContent = `(${rec.dolomit.valStrTon})`;
+  if (dolomitZak) dolomitZak.textContent = `${rec.dolomit.valStrZak}`;
+
+  const komposPerHa = document.getElementById('rec-kompos-per-ha');
+  const komposKg = document.getElementById('rec-kompos-kg');
+  const komposTon = document.getElementById('rec-kompos-ton');
+  const komposZak = document.getElementById('rec-kompos-zak');
+
+  if (komposPerHa) komposPerHa.textContent = `Dosis: ${rec.kompos.perHa} kg/Ha (Status C: ${rec.statuses.cOrganik})`;
+  if (komposKg) komposKg.textContent = rec.kompos.valStrKg;
+  if (komposTon) komposTon.textContent = `(${rec.kompos.valStrTon})`;
+  if (komposZak) komposZak.textContent = `${rec.kompos.valStrZak}`;
+
+  const sp36PerHa = document.getElementById('rec-sp36-per-ha');
+  const sp36Kg = document.getElementById('rec-sp36-kg');
+  const sp36Ton = document.getElementById('rec-sp36-ton');
+  const sp36Zak = document.getElementById('rec-sp36-zak');
+
+  if (sp36PerHa) sp36PerHa.textContent = `Dosis: ${rec.sp36.perHa} kg/Ha (Status P: ${rec.statuses.fosfor})`;
+  if (sp36Kg) sp36Kg.textContent = rec.sp36.valStrKg;
+  if (sp36Ton) sp36Ton.textContent = `(${rec.sp36.valStrTon})`;
+  if (sp36Zak) sp36Zak.textContent = `${rec.sp36.valStrZak}`;
+
+  const kclPerHa = document.getElementById('rec-kcl-per-ha');
+  const kclKg = document.getElementById('rec-kcl-kg');
+  const kclTon = document.getElementById('rec-kcl-ton');
+  const kclZak = document.getElementById('rec-kcl-zak');
+
+  if (kclPerHa) kclPerHa.textContent = `Dosis: ${rec.kcl.perHa} kg/Ha (Status K: ${rec.statuses.kalium})`;
+  if (kclKg) kclKg.textContent = rec.kcl.valStrKg;
+  if (kclTon) kclTon.textContent = `(${rec.kcl.valStrTon})`;
+  if (kclZak) kclZak.textContent = `${rec.kcl.valStrZak}`;
+
+  // Summary Cards
+  const totalKgEl = document.getElementById('total-fertilizer-requirement-kg');
+  const totalLandDescEl = document.getElementById('total-fertilizer-land-area-desc');
+  const totalTonEl = document.getElementById('total-fertilizer-requirement-ton');
+  const totalZakEl = document.getElementById('total-fertilizer-requirement-zak');
+
+  if (totalKgEl) totalKgEl.textContent = rec.totals.valStrKg;
+  if (totalLandDescEl) totalLandDescEl.textContent = `Kalkulasi nyata pupuk & amelioran dihitung untuk luas hamparan lahan kelolaan sebesar ${landAreaHa.toFixed(2)} Hektar (Ha).`;
+  if (totalTonEl) totalTonEl.textContent = rec.totals.valStrTon;
+  if (totalZakEl) totalZakEl.textContent = rec.totals.valStrZak;
+
+  // Bind print button action
+  const printBtn = document.getElementById('btn-print-fertilizer-plan');
+  if (printBtn) {
+    printBtn.onclick = () => {
+      const meta = loadResearchMetadata();
+      const printWin = window.open('', '_blank');
+      if (!printWin) {
+        showToast('Popup Terblokir', 'Harap izinkan popup di browser Anda untuk mencetak dokumen.', 'warning');
+        return;
+      }
+
+      const dateStr = new Date().toLocaleDateString('id-ID', {
+        weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
+      });
+
+      // Write styled printable documentation
+      printWin.document.write(`
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <title>Rencana Pemupukan Pertanian Presisi - AgriMap Lite</title>
+          <style>
+            body { font-family: 'Helvetica Neue', Arial, sans-serif; color: #1e293b; padding: 40px; line-height: 1.5; }
+            .header { text-align: center; border-bottom: 3px double #cbd5e1; padding-bottom: 20px; margin-bottom: 30px; }
+            .header h1 { margin: 0; color: #0284c7; font-size: 26px; }
+            .header p { margin: 5px 0 0; color: #64748b; font-size: 13px; }
+            .meta-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 30px; background-color: #f8fafc; padding: 20px; border-radius: 12px; }
+            .meta-item { font-size: 13px; }
+            .meta-label { font-weight: bold; color: #475569; display: block; margin-bottom: 3px; }
+            .meta-val { color: #0f172a; }
+            table { width: 100%; border-collapse: collapse; margin-bottom: 25px; }
+            th { background-color: #0284c7; color: white; padding: 12px; font-size: 12px; text-transform: uppercase; text-align: left; }
+            td { padding: 12px; border-bottom: 1px solid #e2e8f0; font-size: 13px; }
+            .total-row { background-color: #f1f5f9; font-weight: bold; }
+            .total-row td { font-size: 14px; border-top: 2px solid #cbd5e1; }
+            .badge { display: inline-block; padding: 3px 8px; border-radius: 4px; font-size: 11px; font-weight: bold; }
+            .badge-primary { background-color: #bae6fd; color: #0369a1; }
+            .badge-success { background-color: #bbf7d0; color: #15803d; }
+            .badge-warning { background-color: #fef08a; color: #a16207; }
+            .notes { background-color: #e0f2fe; border-left: 4px solid #0284c7; padding: 15px; border-radius: 8px; font-size: 12px; margin-top: 30px; }
+            .footer { margin-top: 50px; text-align: center; font-size: 11px; color: #94a3b8; border-top: 1px solid #e2e8f0; padding-top: 15px; }
+            @media print {
+              body { padding: 0; }
+              button { display: none; }
+            }
+          </style>
+        </head>
+        <body>
+          <div class="header">
+            <h1>📄 RENCANA PEMUPUKAN & AMELIORASI TANAH PRESISI</h1>
+            <p>Dihasilkan secara otomatis oleh AgriMap Lite Pro pada ${dateStr}</p>
+          </div>
+
+          <div class="meta-grid">
+            <div class="meta-item">
+              <span class="meta-label">Judul Penelitian / Lahan:</span>
+              <span class="meta-val">${meta.judulPenelitian || 'Rencana Pemupukan Swadaya Petani'}</span>
+            </div>
+            <div class="meta-item">
+              <span class="meta-label">Nama Pemilik / Penyuluh:</span>
+              <span class="meta-val">${meta.namaPeneliti || 'Nama Petani Mitrabinaan'}</span>
+            </div>
+            <div class="meta-item">
+              <span class="meta-label">Instansi / BPP / Poktan:</span>
+              <span class="meta-val">${meta.instansi || 'Kelompok Tani Wilayah'}</span>
+            </div>
+            <div class="meta-item">
+              <span class="meta-label">Lokasi Hamparan Lahan:</span>
+              <span class="meta-val">${meta.lokasiPenelitian || 'Lahan Pertanian Mitrabinaan'}</span>
+            </div>
+            <div class="meta-item">
+              <span class="meta-label">Komoditas Budidaya:</span>
+              <span class="meta-val">${meta.komoditasUtama || 'Hortikultura Umum'}</span>
+            </div>
+            <div class="meta-item">
+              <span class="meta-label">Luas Hamparan Lahan:</span>
+              <span class="meta-val font-bold" style="color: #15803d;">${landAreaHa.toFixed(2)} Hektar (Ha)</span>
+            </div>
+          </div>
+
+          <h3 style="color:#0f172a; border-bottom: 2px solid #e2e8f0; padding-bottom: 8px; font-size: 16px;">📊 REKAPITULASI TAKARAN DAN KEBUTUHAN LAHAN</h3>
+          <table>
+            <thead>
+              <tr>
+                <th>Produk Pupuk / Amelioran</th>
+                <th>Dosis Rekomendasi (per Hektar)</th>
+                <th>Status Parameter Tanah</th>
+                <th>Total Kebutuhan (${landAreaHa.toFixed(2)} Ha)</th>
+                <th>Unit Tonase</th>
+                <th>Logistik Kemasan (50 kg)</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><strong>🌾 Pupuk Urea</strong></td>
+                <td>${rec.urea.perHa} kg/Ha</td>
+                <td><span class="badge badge-primary">N ${rec.statuses.nitrogen}</span></td>
+                <td><strong>${rec.urea.totalKg.toLocaleString('id-ID')} kg</strong></td>
+                <td>${rec.urea.totalTon.toFixed(3)} ton</td>
+                <td>${Math.ceil(rec.urea.totalZak)} zak</td>
+              </tr>
+              <tr>
+                <td><strong>🧪 Pupuk SP-36</strong></td>
+                <td>${rec.sp36.perHa} kg/Ha</td>
+                <td><span class="badge badge-primary">P ${rec.statuses.fosfor}</span></td>
+                <td><strong>${rec.sp36.totalKg.toLocaleString('id-ID')} kg</strong></td>
+                <td>${rec.sp36.totalTon.toFixed(3)} ton</td>
+                <td>${Math.ceil(rec.sp36.totalZak)} zak</td>
+              </tr>
+              <tr>
+                <td><strong>⚡ Pupuk KCl</strong></td>
+                <td>${rec.kcl.perHa} kg/Ha</td>
+                <td><span class="badge badge-primary">K ${rec.statuses.kalium}</span></td>
+                <td><strong>${rec.kcl.totalKg.toLocaleString('id-ID')} kg</strong></td>
+                <td>${rec.kcl.totalTon.toFixed(3)} ton</td>
+                <td>${Math.ceil(rec.kcl.totalZak)} zak</td>
+              </tr>
+              <tr>
+                <td><strong>🪨 Kapur Dolomit</strong></td>
+                <td>${rec.dolomit.perHa} kg/Ha</td>
+                <td><span class="badge badge-warning">pH: ${rec.statuses.ph}</span></td>
+                <td><strong>${rec.dolomit.totalKg.toLocaleString('id-ID')} kg</strong></td>
+                <td>${rec.dolomit.totalTon.toFixed(3)} ton</td>
+                <td>${Math.ceil(rec.dolomit.totalZak)} zak</td>
+              </tr>
+              <tr>
+                <td><strong>🌱 Bahan Organik / Kompos</strong></td>
+                <td>${rec.kompos.perHa} kg/Ha</td>
+                <td><span class="badge badge-primary">C-Org ${rec.statuses.cOrganik}</span></td>
+                <td><strong>${rec.kompos.totalKg.toLocaleString('id-ID')} kg</strong></td>
+                <td>${rec.kompos.totalTon.toFixed(3)} ton</td>
+                <td>${Math.ceil(rec.kompos.totalZak)} zak</td>
+              </tr>
+              <tr class="total-row">
+                <td colspan="3">TOTAL SELURUH KEBUTUHAN INTERVENSI LAHAN:</td>
+                <td>${rec.totals.kg.toLocaleString('id-ID')} kg</td>
+                <td>${rec.totals.ton.toFixed(3)} ton</td>
+                <td>${Math.ceil(rec.totals.zak)} zak</td>
+              </tr>
+            </tbody>
+          </table>
+
+          <div class="notes">
+            <strong>💡 PETUNJUK APLIKASI DI LAPANGAN UNTUK PETANI:</strong>
+            <ul style="margin: 8px 0 0; padding-left: 20px;">
+              <li><strong>Pengapuran (Dolomit):</strong> Lakukan penyebaran dolomit secara merata minimal 2-3 minggu sebelum menaburkan pupuk kimia lainnya agar tidak terjadi reaksi antagonisme kation hara.</li>
+              <li><strong>Pupuk Organik (Kompos):</strong> Taburkan bersamaan dengan pengolahan tanah (bedengan atau pembajakan awal) untuk menjamin struktur remah tanah terbentuk dengan baik.</li>
+              <li><strong>Urea, SP-36, KCl:</strong> Lakukan aplikasi pupuk makro ini secara terpisah atau dicampur merata secara periodik menyesuaikan dengan fase pertumbuhan vegetatif dan generatif tanaman Anda.</li>
+            </ul>
+          </div>
+
+          <div class="footer">
+            <p>Laporan Sertifikat Rekomendasi Lahan Presisi Terkomputasi - AgriMap Lite.</p>
+            <p>Terima kasih telah menggunakan AgriMap Lite untuk memajukan ketahanan pangan nasional.</p>
+          </div>
+
+          <script>
+            window.onload = function() {
+              window.print();
+            };
+          </script>
+        </body>
+        </html>
+      `);
+      printWin.document.close();
+    };
   }
 }
 

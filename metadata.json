@@ -1,6 +1,6 @@
 {
   "name": "AgriMap Lite",
-  "description": "Aplikasi PWA pemetaan pH tanah untuk tanaman cabai dan mentimun yang berjalan sepenuhnya offline.",
+  "description": "Aplikasi PWA pemetaan pH tanah dan analisis kesuburan lanjutan (N, P, K, C-Organik) untuk tanaman cabai dan mentimun.",
   "requestFramePermissions": ["geolocation"],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

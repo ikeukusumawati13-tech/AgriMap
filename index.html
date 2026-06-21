@@ -88,7 +88,7 @@
           </div>
         </div>
 
-        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <!-- Field 1: Judul Penelitian -->
           <div class="flex flex-col gap-1">
             <label for="meta-judul" class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Judul Penelitian / Laporan</label>
@@ -123,6 +123,12 @@
           <div class="flex flex-col gap-1">
             <label for="meta-tahun" class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Tahun Penelitian</label>
             <input type="number" id="meta-tahun" min="2000" max="2100" class="w-full text-xs border border-slate-200 bg-slate-50/50 hover:bg-slate-50/20 focus:bg-white rounded-xl px-3.5 py-2 outline-none focus:ring-1 focus:ring-emerald-500 transition" />
+          </div>
+
+          <!-- Field 7: Luas Lahan (Ha) -->
+          <div class="flex flex-col gap-1">
+            <label for="meta-luas" class="text-[10px] font-bold text-slate-550 uppercase tracking-wider flex items-center gap-1">🗺️ Luas Lahan Pertanian (Ha)</label>
+            <input type="number" id="meta-luas" min="0.01" step="0.01" value="1.00" placeholder="Contoh: 1.5" class="w-full text-xs font-bold border border-slate-200 bg-emerald-50/10 hover:bg-emerald-50/20 focus:bg-white rounded-xl px-3.5 py-2 outline-none focus:ring-1 focus:ring-emerald-500 transition" />
           </div>
         </div>
 
@@ -262,6 +268,662 @@
         </div>
       </section>
 
+      <!-- ROW 1.75: Soil Fertility Dashboard (New) -->
+      <section class="mt-4 flex flex-col gap-2">
+        <div class="flex items-center justify-between border-b border-slate-200 pb-1">
+          <span class="font-bold text-slate-800 text-xs uppercase tracking-wider flex items-center gap-1.5">
+            🌱 Dashboard Kesuburan Tanah
+          </span>
+          <span class="text-[10px] text-slate-400 font-medium">Diperbarui otomatis secara real-time</span>
+        </div>
+        
+        <div class="grid grid-cols-2 lg:grid-cols-5 gap-4" id="fertility-dashboard">
+          <!-- Card 1: Average pH -->
+          <div class="bg-white p-4.5 rounded-2xl border border-slate-200 shadow-3xs flex items-center gap-3.5 transition hover:shadow-2xs">
+            <div id="fertility-indicator-ph" class="w-2.5 h-10 rounded-full bg-slate-300 flex-shrink-0 transition-all duration-300"></div>
+            <div>
+              <span class="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">Rata-rata pH</span>
+              <h3 class="text-xl font-black text-slate-800 border-none m-0 pt-0.5 leading-none transition-all" id="fertility-avg-ph">-</h3>
+              <span class="text-[9px] text-slate-500 font-bold block mt-1" id="fertility-label-ph">-</span>
+            </div>
+          </div>
+
+          <!-- Card 2: Average N -->
+          <div class="bg-white p-4.5 rounded-2xl border border-slate-200 shadow-3xs flex items-center gap-3.5 transition hover:shadow-2xs">
+            <div id="fertility-indicator-n" class="w-2.5 h-10 rounded-full bg-slate-300 flex-shrink-0 transition-all duration-300"></div>
+            <div>
+              <span class="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">Rata-rata N (%)</span>
+              <h3 class="text-xl font-black text-slate-800 border-none m-0 pt-0.5 leading-none transition-all" id="fertility-avg-n">-</h3>
+              <span class="text-[9px] text-slate-500 font-bold block mt-1" id="fertility-label-n">-</span>
+            </div>
+          </div>
+
+          <!-- Card 3: Average P -->
+          <div class="bg-white p-4.5 rounded-2xl border border-slate-200 shadow-3xs flex items-center gap-3.5 transition hover:shadow-2xs">
+            <div id="fertility-indicator-p" class="w-2.5 h-10 rounded-full bg-slate-300 flex-shrink-0 transition-all duration-300"></div>
+            <div>
+              <span class="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">Rata-rata P (ppm)</span>
+              <h3 class="text-xl font-black text-slate-800 border-none m-0 pt-0.5 leading-none transition-all" id="fertility-avg-p">-</h3>
+              <span class="text-[9px] text-slate-500 font-bold block mt-1" id="fertility-label-p">-</span>
+            </div>
+          </div>
+
+          <!-- Card 4: Average K -->
+          <div class="bg-white p-4.5 rounded-2xl border border-slate-200 shadow-3xs flex items-center gap-3.5 transition hover:shadow-2xs">
+            <div id="fertility-indicator-k" class="w-2.5 h-10 rounded-full bg-slate-300 flex-shrink-0 transition-all duration-300"></div>
+            <div>
+              <span class="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">Rata-rata K (ppm)</span>
+              <h3 class="text-xl font-black text-slate-800 border-none m-0 pt-0.5 leading-none transition-all" id="fertility-avg-k">-</h3>
+              <span class="text-[9px] text-slate-500 font-bold block mt-1" id="fertility-label-k">-</span>
+            </div>
+          </div>
+
+          <!-- Card 5: Average C-Organik -->
+          <div class="bg-white p-4.5 rounded-2xl border border-slate-200 shadow-3xs flex items-center gap-3.5 transition hover:shadow-2xs">
+            <div id="fertility-indicator-c" class="w-2.5 h-10 rounded-full bg-slate-300 flex-shrink-0 transition-all duration-300"></div>
+            <div>
+              <span class="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">Rata-rata C-Organik</span>
+              <h3 class="text-xl font-black text-slate-800 border-none m-0 pt-0.5 leading-none transition-all" id="fertility-avg-c">-</h3>
+              <span class="text-[9px] text-slate-500 font-bold block mt-1" id="fertility-label-c">-</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ROW 1.77: Land Limiting Factor Analysis Dashboard (Sistem Analisis Faktor Pembatas Lahan) (New) -->
+      <section class="mt-4 bg-white rounded-3xl border border-slate-200 shadow-sm p-5 transition hover:border-emerald-250 flex flex-col gap-4">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-3">
+          <div>
+            <h2 class="text-base font-black text-slate-800 flex items-center gap-1.5 m-0 p-0 border-none">
+              🔍 Sistem Analisis Faktor Pembatas Lahan
+            </h2>
+            <p class="text-xs text-slate-500 m-0 mt-0.5">Identifikasi unsur hara paling kritis yang membatasi produktivitas tanah secara aktual.</p>
+          </div>
+          <div>
+            <span class="inline-flex items-center gap-1.5 text-xxs font-bold text-emerald-850 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-full">
+              🌾 Untuk Petani & Pengusaha Pertanian
+            </span>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-5">
+          <!-- Column 1 & 2: Land Status & Detailed Factor Ranking -->
+          <div class="lg:col-span-7 flex flex-col gap-4">
+            <!-- Land Status Card -->
+            <div id="limiting-status-card" class="bg-white p-5 rounded-2xl border border-slate-200 shadow-3xs flex flex-col gap-2.5 transition duration-300">
+              <span class="text-[10px] text-slate-400 font-bold uppercase tracking-widest block leading-none">STATUS LAHAN SAAT INI</span>
+              <div class="flex items-center justify-between">
+                <span id="limiting-status-badge" class="inline-flex items-center gap-1.5 px-3 py-1 text-xs font-extrabold rounded-lg text-slate-650 bg-slate-100 border border-slate-250 transition duration-300">
+                  ⚪ Menunggu Data
+                </span>
+                <span class="text-xxs font-black text-slate-400">AGRIMAP LITE PRO</span>
+              </div>
+              <p id="limiting-status-desc" class="text-xs text-slate-600 leading-relaxed m-0">Masukkan data titik sampel hara tanah multi-parameter Anda untuk memulai penilaian status lahan otomatis.</p>
+            </div>
+
+            <!-- Limiting Factors Ranked List -->
+            <div class="bg-slate-50/25 p-5 rounded-2xl border border-slate-200 flex flex-col gap-3">
+              <span class="text-[10px] text-slate-500 font-extrabold uppercase tracking-widest block leading-none mb-1">URUTAN FAKTOR PEMBATAS (SKOR TERENDAH)</span>
+              <div id="limiting-factors-list-container" class="flex flex-col gap-2.5">
+                <!-- Loaded dynamically -->
+              </div>
+            </div>
+          </div>
+
+          <!-- Column 3: Agricultural Advice & Recommendations -->
+          <div class="lg:col-span-5 bg-slate-50/45 p-5 rounded-2xl border border-slate-200/90 flex flex-col gap-3">
+            <span class="text-[10px] text-slate-500 font-extrabold uppercase tracking-widest block leading-none mb-1">REKOMENDASI PERBAIKAN & INTERVENSI AGRONOMI</span>
+            <div id="limiting-recommendations-container" class="flex flex-col gap-3 overflow-y-auto max-h-[360px] pr-1">
+              <!-- Loaded dynamically -->
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ROW 1.77b: Actual Fertilizer Recommendation Dashboard (Rencana Pemupukan Aktual) (New) -->
+      <section class="mt-4 bg-white rounded-3xl border border-slate-200 shadow-sm p-5 transition hover:border-emerald-250 flex flex-col gap-4">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-3">
+          <div>
+            <h2 class="text-base font-black text-slate-800 flex items-center gap-1.5 m-0 p-0 border-none">
+              📝 Rencana Pemupukan & Ameliorasi Presisi
+            </h2>
+            <p class="text-xs text-slate-500 m-0 mt-0.5">Rendemen takaran pupuk terhitung otomatis berlandaskan luas seluruh hamparan lahan milik Anda.</p>
+          </div>
+          <div>
+            <button id="btn-print-fertilizer-plan" class="text-xxs font-black bg-slate-900 border border-slate-800 text-white hover:bg-slate-805 active:bg-black px-4 py-1.8 rounded-xl transition cursor-pointer flex items-center gap-1.5 shadow-sm">
+              📄 Cetak Rencana Pemupukan
+            </button>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-5">
+          <!-- Column 1: Fertilizer Cards Grid -->
+          <div class="lg:col-span-8 flex flex-col gap-3">
+            <span class="text-[10px] text-slate-500 font-extrabold uppercase tracking-widest block leading-none mb-1">DOSIS DAN KEBUTUHAN PER PRODUK</span>
+            
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5">
+              <!-- 🌾 Urea Card -->
+              <div class="bg-gradient-to-br from-emerald-50/10 to-emerald-50/30 p-4 rounded-2xl border border-emerald-100/50 flex flex-col gap-3">
+                <div class="flex items-center justify-between">
+                  <span class="text-2xl select-none">🌾</span>
+                  <span class="px-2 py-0.5 text-[8px] font-black uppercase text-emerald-700 bg-emerald-50 rounded-md">Nitrogen (N)</span>
+                </div>
+                <div>
+                  <h4 class="text-xs font-black text-slate-800 leading-none">Pupuk Urea</h4>
+                  <span class="text-[10px] text-slate-400 font-bold block mt-1" id="rec-urea-per-ha">Rekomendasi: - kg/Ha</span>
+                </div>
+                <div class="border-t border-slate-100/50 pt-2 flex flex-col gap-1">
+                  <span class="text-[10px] text-slate-400 font-bold uppercase block leading-none">Total Kebutuhan:</span>
+                  <div class="flex items-baseline gap-1.5">
+                    <span class="text-base font-black text-slate-800 leading-none" id="rec-urea-kg">- kg</span>
+                    <span class="text-[9px] text-emerald-600 font-extrabold" id="rec-urea-ton">(- ton)</span>
+                  </div>
+                  <span class="text-[9px] text-slate-400 font-bold" id="rec-urea-zak">- zak (50 kg)</span>
+                </div>
+              </div>
+
+              <!-- 🪨 Dolomit Card -->
+              <div class="bg-gradient-to-br from-slate-50/10 to-slate-50/30 p-4 rounded-2xl border border-slate-200/50 flex flex-col gap-3">
+                <div class="flex items-center justify-between">
+                  <span class="text-2xl select-none">🪨</span>
+                  <span class="px-2 py-0.5 text-[8px] font-black uppercase text-slate-600 bg-slate-100 rounded-md">pH & Kalsium</span>
+                </div>
+                <div>
+                  <h4 class="text-xs font-black text-slate-800 leading-none">Kapur Dolomit</h4>
+                  <span class="text-[10px] text-slate-400 font-bold block mt-1" id="rec-dolomit-per-ha">Rekomendasi: - kg/Ha</span>
+                </div>
+                <div class="border-t border-slate-100/50 pt-2 flex flex-col gap-1">
+                  <span class="text-[10px] text-slate-400 font-bold uppercase block leading-none">Total Kebutuhan:</span>
+                  <div class="flex items-baseline gap-1.5">
+                    <span class="text-base font-black text-slate-800 leading-none" id="rec-dolomit-kg">- kg</span>
+                    <span class="text-[9px] text-slate-500 font-extrabold" id="rec-dolomit-ton">(- ton)</span>
+                  </div>
+                  <span class="text-[9px] text-slate-400 font-bold" id="rec-dolomit-zak">- zak (50 kg)</span>
+                </div>
+              </div>
+
+              <!-- 🌱 Kompos Card -->
+              <div class="bg-gradient-to-br from-emerald-50/10 to-emerald-50/30 p-4 rounded-2xl border border-emerald-100/50 flex flex-col gap-3">
+                <div class="flex items-center justify-between">
+                  <span class="text-2xl select-none">🌱</span>
+                  <span class="px-2 py-0.5 text-[8px] font-black uppercase text-emerald-700 bg-emerald-50 rounded-md">Bahan Organik</span>
+                </div>
+                <div>
+                  <h4 class="text-xs font-black text-slate-800 leading-none">Pupuk Kompos</h4>
+                  <span class="text-[10px] text-slate-400 font-bold block mt-1" id="rec-kompos-per-ha">Rekomendasi: - kg/Ha</span>
+                </div>
+                <div class="border-t border-slate-100/50 pt-2 flex flex-col gap-1">
+                  <span class="text-[10px] text-slate-400 font-bold uppercase block leading-none">Total Kebutuhan:</span>
+                  <div class="flex items-baseline gap-1.5">
+                    <span class="text-base font-black text-slate-800 leading-none" id="rec-kompos-kg">- kg</span>
+                    <span class="text-[9px] text-emerald-600 font-extrabold" id="rec-kompos-ton">(- ton)</span>
+                  </div>
+                  <span class="text-[9px] text-slate-400 font-bold" id="rec-kompos-zak">- zak (50 kg)</span>
+                </div>
+              </div>
+
+              <!-- 🧪 SP36 Card -->
+              <div class="bg-gradient-to-br from-sky-50/10 to-sky-50/30 p-4 rounded-2xl border border-sky-100/50 flex flex-col gap-3">
+                <div class="flex items-center justify-between">
+                  <span class="text-2xl select-none">🧪</span>
+                  <span class="px-2 py-0.5 text-[8px] font-black uppercase text-sky-700 bg-sky-50 rounded-md">Fosfor (P)</span>
+                </div>
+                <div>
+                  <h4 class="text-xs font-black text-slate-800 leading-none">Pupuk SP-36</h4>
+                  <span class="text-[10px] text-slate-400 font-bold block mt-1" id="rec-sp36-per-ha">Rekomendasi: - kg/Ha</span>
+                </div>
+                <div class="border-t border-slate-100/50 pt-2 flex flex-col gap-1">
+                  <span class="text-[10px] text-slate-400 font-bold uppercase block leading-none">Total Kebutuhan:</span>
+                  <div class="flex items-baseline gap-1.5">
+                    <span class="text-base font-black text-slate-800 leading-none" id="rec-sp36-kg">- kg</span>
+                    <span class="text-[9px] text-sky-600 font-extrabold" id="rec-sp36-ton">(- ton)</span>
+                  </div>
+                  <span class="text-[9px] text-slate-400 font-bold" id="rec-sp36-zak">- zak (50 kg)</span>
+                </div>
+              </div>
+
+              <!-- ⚡ KCl Card -->
+              <div class="bg-gradient-to-br from-amber-50/10 to-amber-50/30 p-4 rounded-2xl border border-amber-100/50 flex flex-col gap-3">
+                <div class="flex items-center justify-between">
+                  <span class="text-2xl select-none">⚡</span>
+                  <span class="px-2 py-0.5 text-[8px] font-black uppercase text-amber-700 bg-amber-50 rounded-md">Kalium (K)</span>
+                </div>
+                <div>
+                  <h4 class="text-xs font-black text-slate-800 leading-none">Pupuk KCl</h4>
+                  <span class="text-[10px] text-slate-400 font-bold block mt-1" id="rec-kcl-per-ha">Rekomendasi: - kg/Ha</span>
+                </div>
+                <div class="border-t border-slate-100/50 pt-2 flex flex-col gap-1">
+                  <span class="text-[10px] text-slate-400 font-bold uppercase block leading-none">Total Kebutuhan:</span>
+                  <div class="flex items-baseline gap-1.5">
+                    <span class="text-base font-black text-slate-800 leading-none" id="rec-kcl-kg">- kg</span>
+                    <span class="text-[9px] text-amber-600 font-extrabold" id="rec-kcl-ton">(- ton)</span>
+                  </div>
+                  <span class="text-[9px] text-slate-400 font-bold" id="rec-kcl-zak">- zak (50 kg)</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Column 2: Total Requirement Summary Card -->
+          <div class="lg:col-span-4 flex flex-col gap-4">
+            <span class="text-[10px] text-slate-500 font-extrabold uppercase tracking-widest block leading-none mb-1">TOTAL KEBUTUHAN LAHAN</span>
+
+            <!-- Total Card -->
+            <div class="bg-emerald-650 text-white p-5 rounded-2xl border border-emerald-700 shadow-md flex flex-col justify-between h-full min-h-[190px] relative overflow-hidden transition duration-300 hover:shadow-lg">
+              <div class="absolute right-[-10px] bottom-[-10px] text-[120px] font-black text-emerald-600/15 pointer-events-none select-none">🌾</div>
+              
+              <div class="flex flex-col gap-1.5">
+                <span class="text-[9px] text-emerald-100/85 font-black uppercase tracking-wider block">TOTAL SELURUH KEBUTUHAN PUPUK</span>
+                <div class="flex items-baseline gap-2">
+                  <h3 class="text-2xl lg:text-3xl font-black text-white p-0 m-0 border-none leading-none" id="total-fertilizer-requirement-kg">- kg</h3>
+                </div>
+                <p class="text-[11px] text-emerald-50 max-w-[220px] leading-relaxed mt-1" id="total-fertilizer-land-area-desc">Untuk luas lahan pertanian - Ha.</p>
+              </div>
+
+              <div class="border-t border-emerald-600/55 pt-3 mt-3 flex items-center justify-between">
+                <div>
+                  <span class="text-[9px] text-emerald-100/80 font-bold uppercase block leading-none">Ekuivalen Ton</span>
+                  <span class="text-sm font-black text-white mt-1 block" id="total-fertilizer-requirement-ton">- ton</span>
+                </div>
+                <div class="text-right">
+                  <span class="text-[9px] text-emerald-100/80 font-bold uppercase block leading-none">Ekuivalen Kemasan</span>
+                  <span class="text-sm font-black text-white mt-1 block" id="total-fertilizer-requirement-zak">- zak</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ROW 1.78: Soil Fertility Index (SFI) Dashboard (New) -->
+      <section class="mt-4 bg-white rounded-3xl border border-slate-200 shadow-sm p-5 transition hover:border-violet-200 flex flex-col gap-4">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-3">
+          <div>
+            <h2 class="text-base font-black text-slate-800 flex items-center gap-1.5 m-0 p-0 border-none">
+              📊 Soil Fertility Index (SFI)
+            </h2>
+            <p class="text-xs text-slate-500 m-0 mt-0.5">Indeks kesuburan tanah gabungan (pH, N, P, K, C-Organik) terstandardisasi skala 0-100.</p>
+          </div>
+          <div>
+            <span class="inline-flex items-center gap-1.5 text-xxs font-bold text-violet-850 bg-violet-50 border border-violet-200 px-2.5 py-1 rounded-full">
+              ✨ Indikator SFI Lahan
+            </span>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+          <!-- SFI Main Score Card -->
+          <div class="lg:col-span-4 bg-gradient-to-br from-violet-50 to-indigo-50/50 p-5 rounded-2xl border border-violet-100 flex flex-col justify-between relative overflow-hidden">
+            <div class="absolute right-[-15px] bottom-[-15px] opacity-10 text-9xl font-black text-violet-900/10">SFI</div>
+            <div>
+              <span class="text-[10px] text-violet-700 font-extrabold uppercase tracking-widest block leading-none mb-1.5">Skor SFI Rata-Rata</span>
+              <div class="flex items-baseline gap-2">
+                <span id="sfi-overall-value" class="text-4xl font-black text-slate-850">-</span>
+                <span class="text-xs font-semibold text-slate-400">/ 100</span>
+              </div>
+            </div>
+            <div class="mt-4">
+              <span class="text-[10px] text-slate-400 font-bold uppercase tracking-wider block mb-1">Kategori SFI</span>
+              <div class="flex items-center gap-2">
+                <span id="sfi-badge" class="inline-block px-3 py-1 text-xs font-black rounded-lg text-slate-700 bg-slate-250">-</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- SFI Ranges & Area Dashboard -->
+          <div class="lg:col-span-8 flex flex-col justify-between gap-4">
+            <div class="grid grid-cols-2 sm:grid-cols-5 gap-3.5">
+              <!-- Sangat Subur (80-100) -->
+              <div class="bg-slate-50/40 p-3 rounded-xl border border-slate-100 flex flex-col justify-between">
+                <div>
+                  <span class="w-2.5 h-2.5 rounded-full inline-block bg-[#16a34a] mb-1"></span>
+                  <span class="text-[9px] text-zinc-500 font-bold block leading-none">Sangat Subur</span>
+                </div>
+                <div class="mt-2.5">
+                  <span class="text-xs font-medium text-slate-400 block leading-none">Luas Area</span>
+                  <span id="sfi-area-sangat-subur" class="text-xs font-black text-slate-700 mt-1 block">0.00 Ha</span>
+                </div>
+              </div>
+              
+              <!-- Subur (60-79) -->
+              <div class="bg-slate-50/40 p-3 rounded-xl border border-slate-100 flex flex-col justify-between">
+                <div>
+                  <span class="w-2.5 h-2.5 rounded-full inline-block bg-[#22c55e] mb-1"></span>
+                  <span class="text-[9px] text-zinc-500 font-bold block leading-none">Subur</span>
+                </div>
+                <div class="mt-2.5">
+                  <span class="text-xs font-medium text-slate-400 block leading-none">Luas Area</span>
+                  <span id="sfi-area-subur" class="text-xs font-black text-slate-700 mt-1 block">0.00 Ha</span>
+                </div>
+              </div>
+
+              <!-- Sedang (40-59) -->
+              <div class="bg-slate-50/40 p-3 rounded-xl border border-slate-100 flex flex-col justify-between">
+                <div>
+                  <span class="w-2.5 h-2.5 rounded-full inline-block bg-[#fbbf24] mb-1"></span>
+                  <span class="text-[9px] text-zinc-500 font-bold block leading-none">Sedang</span>
+                </div>
+                <div class="mt-2.5">
+                  <span class="text-xs font-medium text-slate-400 block leading-none">Luas Area</span>
+                  <span id="sfi-area-sedang" class="text-xs font-black text-slate-700 mt-1 block">0.00 Ha</span>
+                </div>
+              </div>
+
+              <!-- Kurang Subur (20-39) -->
+              <div class="bg-slate-50/40 p-3 rounded-xl border border-slate-100 flex flex-col justify-between">
+                <div>
+                  <span class="w-2.5 h-2.5 rounded-full inline-block bg-[#f97316] mb-1"></span>
+                  <span class="text-[9px] text-zinc-500 font-bold block leading-none">Kurang Subur</span>
+                </div>
+                <div class="mt-2.5">
+                  <span class="text-xs font-medium text-slate-400 block leading-none">Luas Area</span>
+                  <span id="sfi-area-kurang" class="text-xs font-black text-slate-700 mt-1 block">0.00 Ha</span>
+                </div>
+              </div>
+
+              <!-- Tidak Subur (0-19) -->
+              <div class="bg-slate-50/40 p-3 rounded-xl border border-slate-100 flex flex-col justify-between col-span-2 sm:col-span-1">
+                <div>
+                  <span class="w-2.5 h-2.5 rounded-full inline-block bg-[#ef4444] mb-1"></span>
+                  <span class="text-[9px] text-zinc-500 font-bold block leading-none">Tidak Subur</span>
+                </div>
+                <div class="mt-2.5">
+                  <span class="text-xs font-medium text-slate-400 block leading-none">Luas Area</span>
+                  <span id="sfi-area-tidak" class="text-xs font-black text-slate-700 mt-1 block">0.00 Ha</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="flex items-center justify-between text-[11px] text-slate-500 bg-slate-50 px-4 py-2.5 rounded-xl border border-slate-100">
+              <div class="flex items-center gap-4">
+                <span>Nilai Terendah: <strong id="sfi-stat-min" class="text-red-600">-</strong></span>
+                <span class="text-slate-300">|</span>
+                <span>Nilai Tertinggi: <strong id="sfi-stat-max" class="text-emerald-600">-</strong></span>
+              </div>
+              <span id="sfi-total-area-desc" class="text-slate-400 text-[10px] hidden sm:inline">Dari total area terpetakan</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ROW 1.8: Soil Fertility Summary Dashboard Cards -->
+      <section class="bg-white rounded-3xl border border-slate-200 shadow-sm p-5 mt-1 transition hover:border-emerald-250 flex flex-col gap-4" id="fertility-dashboard-container">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-3">
+          <div>
+            <h2 class="text-base font-black text-slate-800 flex items-center gap-1.5 m-0 p-0 border-none">
+              🌱 Dashboard Kesuburan Tanah
+            </h2>
+            <p class="text-xs text-slate-500 m-0 mt-0.5">Ringkasan hara makro, mikro, dan tingkat kemasaman aktual lahan terpetakan.</p>
+          </div>
+          <div class="flex items-center gap-3 self-start sm:self-center">
+            <span class="text-[9px] text-slate-400 font-extrabold uppercase tracking-wider">Indikator:</span>
+            <div class="flex items-center gap-1.5">
+              <span class="inline-flex items-center gap-1 text-[9px] font-black text-red-700 bg-red-50 border border-red-200/50 px-1.5 py-0.5 rounded">
+                <span class="w-1.5 h-1.5 rounded-full bg-red-500"></span> Rendah
+              </span>
+              <span class="inline-flex items-center gap-1 text-[9px] font-black text-amber-700 bg-amber-50 border border-amber-200/50 px-1.5 py-0.5 rounded">
+                <span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span> Sedang
+              </span>
+              <span class="inline-flex items-center gap-1 text-[9px] font-black text-green-700 bg-green-50 border border-green-200/50 px-1.5 py-0.5 rounded">
+                <span class="w-1.5 h-1.5 rounded-full bg-green-500"></span> Baik
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4" id="fertility-grid">
+          <!-- Average pH Card -->
+          <div class="bg-slate-50/50 p-4 rounded-2xl border border-slate-200/60 shadow-xs flex items-center gap-3 transition hover:shadow-sm">
+            <div class="w-10 h-10 flex items-center justify-center shrink-0 bg-sky-50 rounded-xl text-sky-600 text-sm font-black">pH</div>
+            <div class="min-w-0">
+              <span class="text-[9px] text-slate-500 font-extrabold uppercase tracking-wider block leading-none mb-1">Rata-rata pH</span>
+              <div class="flex flex-col gap-0.5">
+                <h3 class="text-base font-black text-slate-900 border-none m-0 leading-none" id="fertility-ph-avg">-</h3>
+                <div class="pt-0.5"><span id="fertility-ph-badge" class="inline-block text-[8px] font-black px-1.5 py-0.5 rounded leading-none text-slate-700 bg-slate-100">-</span></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Nitrogen Card -->
+          <div class="bg-slate-50/50 p-4 rounded-2xl border border-slate-200/60 shadow-xs flex items-center gap-3 transition hover:shadow-sm">
+            <div class="w-10 h-10 flex items-center justify-center shrink-0 bg-red-50 rounded-xl text-red-500 text-sm font-black">N</div>
+            <div class="min-w-0">
+              <span class="text-[9px] text-slate-500 font-extrabold uppercase tracking-wider block leading-none mb-1">Rata-rata N</span>
+              <div class="flex flex-col gap-0.5">
+                <h3 class="text-base font-black text-slate-900 border-none m-0 leading-none" id="fertility-n-avg">-</h3>
+                <div class="pt-0.5"><span id="fertility-n-badge" class="inline-block text-[8px] font-black px-1.5 py-0.5 rounded leading-none text-slate-700 bg-slate-100">-</span></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Fosfor Card -->
+          <div class="bg-slate-50/50 p-4 rounded-2xl border border-slate-200/60 shadow-xs flex items-center gap-3 transition hover:shadow-sm">
+            <div class="w-10 h-10 flex items-center justify-center shrink-0 bg-orange-50 rounded-xl text-orange-500 text-sm font-black">P</div>
+            <div class="min-w-0">
+              <span class="text-[9px] text-slate-500 font-extrabold uppercase tracking-wider block leading-none mb-1">Rata-rata P</span>
+              <div class="flex flex-col gap-0.5">
+                <h3 class="text-base font-black text-slate-900 border-none m-0 leading-none" id="fertility-p-avg">-</h3>
+                <div class="pt-0.5"><span id="fertility-p-badge" class="inline-block text-[8px] font-black px-1.5 py-0.5 rounded leading-none text-slate-700 bg-slate-100">-</span></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Kalium Card -->
+          <div class="bg-slate-50/50 p-4 rounded-2xl border border-slate-200/60 shadow-xs flex items-center gap-3 transition hover:shadow-sm">
+            <div class="w-10 h-10 flex items-center justify-center shrink-0 bg-amber-50 rounded-xl text-amber-600 text-sm font-black">K</div>
+            <div class="min-w-0">
+              <span class="text-[9px] text-slate-500 font-extrabold uppercase tracking-wider block leading-none mb-1">Rata-rata K</span>
+              <div class="flex flex-col gap-0.5">
+                <h3 class="text-base font-black text-slate-900 border-none m-0 leading-none" id="fertility-k-avg">-</h3>
+                <div class="pt-0.5"><span id="fertility-k-badge" class="inline-block text-[8px] font-black px-1.5 py-0.5 rounded leading-none text-slate-700 bg-slate-100">-</span></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- C-Organik Card -->
+          <div class="bg-slate-50/50 p-4 rounded-2xl border border-slate-200/60 shadow-xs flex items-center gap-3 transition hover:shadow-sm">
+            <div class="w-10 h-10 flex items-center justify-center shrink-0 bg-emerald-50 rounded-xl text-emerald-600 text-sm font-black">C</div>
+            <div class="min-w-0">
+              <span class="text-[9px] text-slate-500 font-extrabold uppercase tracking-wider block leading-none mb-1">C-Organik</span>
+              <div class="flex flex-col gap-0.5">
+                <h3 class="text-base font-black text-slate-900 border-none m-0 leading-none" id="fertility-c-avg">-</h3>
+                <div class="pt-0.5"><span id="fertility-c-badge" class="inline-block text-[8px] font-black px-1.5 py-0.5 rounded leading-none text-slate-700 bg-slate-100">-</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ROW 1.9: Soil Fertilizer Recommendation System (New) -->
+      <section class="mt-4 bg-white rounded-3xl border border-slate-200 shadow-sm p-5 transition hover:border-emerald-200 flex flex-col gap-5">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-3">
+          <div>
+            <h2 class="text-base font-black text-slate-800 flex items-center gap-1.5 m-0 p-0 border-none">
+              🌱 Rekomendasi Pemupukan Otomatis (Rekomendasi Kementan)
+            </h2>
+            <p class="text-xs text-slate-500 m-0 mt-0.5">Rekomendasi takaran pupuk presisi dan prioritas tindakan pembenah tanah otomatis berbasis agronomi spasial.</p>
+          </div>
+          <div>
+            <span class="inline-flex items-center gap-1.5 text-xxs font-bold text-emerald-850 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-full animate-pulse">
+              ⚙️ Algoritma Presisi Agronomi
+            </span>
+          </div>
+        </div>
+
+        <!-- Row 1.9.1: Limiting Factor & Lowest Parameter Alerts -->
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-5">
+          <!-- Main Limiting Factor Card -->
+          <div class="lg:col-span-8 bg-amber-50/40 p-4.5 rounded-2xl border border-amber-200/50 flex flex-col justify-between">
+            <div>
+              <div class="flex items-center gap-2 mb-2">
+                <span class="inline-flex items-center justify-center w-5 h-5 rounded-full bg-amber-500 text-white font-black text-xxs">⚠️</span>
+                <span class="text-[10px] text-amber-800 font-extrabold uppercase tracking-widest block leading-none">Faktor Pembatas Utama Lahan</span>
+              </div>
+              <h3 id="recommendation-limiting-title" class="text-base font-black text-slate-850 m-0 border-none">-</h3>
+              <p id="recommendation-limiting-desc" class="text-xs text-slate-650 mt-1.5 leading-relaxed">-</p>
+            </div>
+            <div class="mt-4 pt-3 border-t border-amber-200/30 flex items-center gap-2">
+              <span class="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">Solusi Utama:</span>
+              <span id="recommendation-limiting-badge" class="inline-block px-2.5 py-0.5 text-xxs font-extrabold rounded-md text-amber-800 bg-amber-100">-</span>
+            </div>
+          </div>
+
+          <!-- Lowest Parameter Box -->
+          <div class="lg:col-span-4 bg-slate-50/65 p-4.5 rounded-2xl border border-slate-200/60 flex flex-col justify-between relative overflow-hidden">
+            <div class="absolute right-[-10px] bottom-[-10px] text-6xl font-black text-slate-200/30 select-none">MIN</div>
+            <div>
+              <span class="text-[10px] text-slate-400 font-bold uppercase tracking-widest block leading-none mb-2_5">Kinerja Parameter Terendah</span>
+              <div class="flex flex-col gap-1">
+                <span id="recommendation-lowest-param-name" class="text-xs font-extrabold text-slate-700">-</span>
+                <span id="recommendation-lowest-param-value" class="text-2xl font-black text-slate-850">-</span>
+              </div>
+            </div>
+            <div class="mt-4 pt-3 border-t border-slate-250/20">
+              <span id="recommendation-lowest-param-status" class="inline-block px-2 py-0.5 text-xxs font-black rounded-lg text-slate-600 bg-slate-200">-</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Row 1.9.2: Fertilizer Cards Deck -->
+        <div>
+          <h3 class="text-xs font-extrabold text-slate-700 uppercase tracking-widest block mb-3 leading-none">Takaran Pupuk Rekomendasi (Dosis per Hektar)</h3>
+          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+            
+            <!-- Urea Card -->
+            <div class="bg-white p-4 rounded-2xl border border-slate-200 hover:border-slate-300 transition shadow-3xs flex flex-col justify-between">
+              <div>
+                <div class="flex items-center justify-between mb-2">
+                  <span class="px-2 py-0.5 text-[9px] font-black uppercase tracking-wider rounded-md text-red-700 bg-red-50 border border-red-200">Urea (N)</span>
+                  <span class="text-xs">🍂</span>
+                </div>
+                <div class="my-2">
+                  <span id="recommendation-dose-urea" class="text-2xl font-black text-slate-850">-</span>
+                </div>
+                <p id="recommendation-reason-urea" class="text-[11px] text-slate-500 leading-normal m-0 mt-2">-</p>
+              </div>
+            </div>
+
+            <!-- SP-36 Card -->
+            <div class="bg-white p-4 rounded-2xl border border-slate-200 hover:border-slate-300 transition shadow-3xs flex flex-col justify-between">
+              <div>
+                <div class="flex items-center justify-between mb-2">
+                  <span class="px-2 py-0.5 text-[9px] font-black uppercase tracking-wider rounded-md text-sky-700 bg-sky-50 border border-sky-200">SP-36 (P)</span>
+                  <span class="text-xs">🐚</span>
+                </div>
+                <div class="my-2">
+                  <span id="recommendation-dose-sp36" class="text-2xl font-black text-slate-850">-</span>
+                </div>
+                <p id="recommendation-reason-sp36" class="text-[11px] text-slate-500 leading-normal m-0 mt-2">-</p>
+              </div>
+            </div>
+
+            <!-- KCl Card -->
+            <div class="bg-white p-4 rounded-2xl border border-slate-200 hover:border-slate-300 transition shadow-3xs flex flex-col justify-between">
+              <div>
+                <div class="flex items-center justify-between mb-2">
+                  <span class="px-2 py-0.5 text-[9px] font-black uppercase tracking-wider rounded-md text-amber-700 bg-amber-50 border border-amber-200">KCl (K)</span>
+                  <span class="text-xs">📦</span>
+                </div>
+                <div class="my-2">
+                  <span id="recommendation-dose-kcl" class="text-2xl font-black text-slate-850">-</span>
+                </div>
+                <p id="recommendation-reason-kcl" class="text-[11px] text-slate-500 leading-normal m-0 mt-2">-</p>
+              </div>
+            </div>
+
+            <!-- Dolomit Card -->
+            <div class="bg-white p-4 rounded-2xl border border-slate-200 hover:border-slate-300 transition shadow-3xs flex flex-col justify-between">
+              <div>
+                <div class="flex items-center justify-between mb-2">
+                  <span class="px-2 py-0.5 text-[9px] font-black uppercase tracking-wider rounded-md text-[#6d28d9] bg-[#f5f3ff] border border-[#ddd6fe]">Dolomit</span>
+                  <span class="text-xs">🪵</span>
+                </div>
+                <div class="my-2">
+                  <span id="recommendation-dose-dolomit" class="text-2xl font-black text-slate-850">-</span>
+                </div>
+                <p id="recommendation-reason-dolomit" class="text-[11px] text-slate-500 leading-normal m-0 mt-2">-</p>
+              </div>
+            </div>
+
+            <!-- Pupuk Organik Card -->
+            <div class="bg-white p-4 rounded-2xl border border-slate-200 hover:border-slate-300 transition shadow-3xs flex flex-col justify-between">
+              <div>
+                <div class="flex items-center justify-between mb-2">
+                  <span class="px-2 py-0.5 text-[9px] font-black uppercase tracking-wider rounded-md text-emerald-700 bg-emerald-50 border border-emerald-200">Organik</span>
+                  <span class="text-xs">🍃</span>
+                </div>
+                <div class="my-2">
+                  <span id="recommendation-dose-organik" class="text-2xl font-black text-slate-850">-</span>
+                </div>
+                <p id="recommendation-reason-organik" class="text-[11px] text-slate-500 leading-normal m-0 mt-2">-</p>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+        <!-- Row 1.9.3: Priority Roadmap Step List -->
+        <div class="bg-slate-50/40 p-4.5 rounded-2xl border border-slate-100">
+          <span class="text-[10px] text-slate-450 font-black uppercase tracking-widest block mb-4 leading-none">🗺️ Prioritas Tindakan (Urutan Jadwal Lapangan)</span>
+          <div id="recommendation-actions-container" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
+            <!-- Dynamic Priority Step Elements go here -->
+            <div class="text-xs font-bold text-slate-400 italic">Memproses hara tanah...</div>
+          </div>
+        </div>
+
+        <!-- Accordion: Atur Basis Agronomi (Transparency) -->
+        <details class="bg-slate-50 border border-slate-200 rounded-2xl transition hover:border-slate-300">
+          <summary class="font-extrabold text-xs text-slate-600 px-4 py-3 select-none cursor-pointer flex items-center justify-between">
+            <span>📋 Aturan Agronomis & Konversi Rekomendasi (Sistem Berbasis Aturan Transparan)</span>
+            <span class="text-[9px] text-slate-400">Klik untuk melihat detail aturan</span>
+          </summary>
+          <div class="px-4 pb-4 border-t border-slate-200/60 pt-3 text-xs text-slate-600 leading-relaxed overflow-x-auto">
+            <table class="w-full text-left font-sans text-xxs border-collapse">
+              <thead>
+                <tr class="border-b border-slate-300 text-slate-400 uppercase tracking-wider font-extrabold">
+                  <th class="pb-2">Parameter</th>
+                  <th class="pb-2 px-2">Komoditas Korelatif / Pupuk</th>
+                  <th class="pb-2">Skema & Aturan Ambang Batas Agronomis</th>
+                  <th class="pb-2 text-right">Prioritas</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-slate-100 font-medium">
+                <tr>
+                  <td class="py-2.5 font-bold text-slate-800">pH Tanah</td>
+                  <td class="py-2.5 px-2 text-indigo-700">Kapur Dolomit</td>
+                  <td class="py-2.5">Menaikkan pH rendah. Jika pH di bawah 5.5 (Asam): target kenaikan 6.5 x 2.5 t/Ha. Jika pH 5.5 - 5.9: target x 1.5 t/Ha. Jika ≥ 6.0: 0 t/Ha.</td>
+                  <td class="py-2.5 text-right font-black text-[#6d28d9]">Critical / Utama</td>
+                </tr>
+                <tr>
+                  <td class="py-2.5 font-bold text-slate-800">Nitrogen (%)</td>
+                  <td class="py-2.5 px-2 text-red-650">Pupuk Urea</td>
+                  <td class="py-2.5">Kadar N di bawah 0.10%: 260 kg/Ha; 0.10% - 0.20%: 200 kg/Ha; 0.21% - 0.50%: 140 kg/Ha; > 0.50%: 75 kg/Ha (Dosis pemeliharaan).</td>
+                  <td class="py-2.5 text-right font-black text-[#dc2626]">Fase Vegetatif</td>
+                </tr>
+                <tr>
+                  <td class="py-2.5 font-bold text-slate-800">Fosfor (ppm)</td>
+                  <td class="py-2.5 px-2 text-sky-650">Pupuk SP-36</td>
+                  <td class="py-2.5">Kadar P di bawah 10 ppm: 160 kg/Ha; 10 - 20 ppm: 120 kg/Ha; 21 - 40 ppm: 80 kg/Ha; > 40 ppm: 40 kg/Ha (Dosis pemeliharaan).</td>
+                  <td class="py-2.5 text-right font-black text-sky-600">Akar & Bunga</td>
+                </tr>
+                <tr>
+                  <td class="py-2.5 font-bold text-slate-800">Kalium (ppm)</td>
+                  <td class="py-2.5 px-2 text-amber-650">Pupuk KCl</td>
+                  <td class="py-2.5">Kadar K di bawah 50 ppm: 130 kg/Ha; 50 - 100 ppm: 100 kg/Ha; 101 - 200 ppm: 70 kg/Ha; > 200 ppm: 35 kg/Ha (Dosis pemeliharaan).</td>
+                  <td class="py-2.5 text-right font-black text-amber-600">Ketahanan Buah</td>
+                </tr>
+                <tr>
+                  <td class="py-2.5 font-bold text-slate-800">C-Organik (%)</td>
+                  <td class="py-2.5 px-2 text-emerald-650">Pupuk Organik</td>
+                  <td class="py-2.5">Kadar C di bawah 1.0%: 15 Ton/Ha; 1.0% - 2.0%: 10 Ton/Ha; 2.1% - 3.0%: 5 Ton/Ha; > 3.0%: 2 Ton/Ha. Berguna meningkatkan ketahanan kelembaban.</td>
+                  <td class="py-2.5 text-right font-black text-emerald-600">Struktur Fisik</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </details>
+      </section>
+
       <!-- ROW 2: Map and Sidebar Form Inputs -->
       <section class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
         
@@ -356,6 +1018,33 @@
                       <span class="text-slate-500">Mentimun:</span>
                       <span id="ph-helper-cucumber" class="font-bold text-emerald-600">Sangat Ideal</span>
                     </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Advanced Soil Fertility Parameters Section -->
+              <div class="flex flex-col gap-2 bg-slate-50 p-3 rounded-2xl border border-slate-200/60">
+                <span class="text-xs font-black text-slate-700 uppercase tracking-wider block">🔬 Analisis Kesuburan Lanjut (Opsional)</span>
+                <div class="grid grid-cols-2 gap-2.5 mt-1">
+                  <!-- Nitrogen -->
+                  <div class="flex flex-col gap-1">
+                    <label for="sample-nitrogen" class="text-[10px] font-extrabold text-slate-500 uppercase">Nitrogen (N %)</label>
+                    <input type="number" step="0.01" id="sample-nitrogen" min="0" placeholder="Contoh: 1.25" class="w-full text-xs font-mono border border-slate-200 bg-white rounded-lg px-2.5 py-2 focus:ring-1 focus:ring-emerald-500 transition outline-none" />
+                  </div>
+                  <!-- Fosfor -->
+                  <div class="flex flex-col gap-1">
+                    <label for="sample-fosfor" class="text-[10px] font-extrabold text-slate-500 uppercase">Fosfor (P ppm)</label>
+                    <input type="number" step="0.01" id="sample-fosfor" min="0" placeholder="Contoh: 15.6" class="w-full text-xs font-mono border border-slate-200 bg-white rounded-lg px-2.5 py-2 focus:ring-1 focus:ring-emerald-500 transition outline-none" />
+                  </div>
+                  <!-- Kalium -->
+                  <div class="flex flex-col gap-1">
+                    <label for="sample-kalium" class="text-[10px] font-extrabold text-slate-500 uppercase">Kalium (K ppm)</label>
+                    <input type="number" step="0.01" id="sample-kalium" min="0" placeholder="Contoh: 120.5" class="w-full text-xs font-mono border border-slate-200 bg-white rounded-lg px-2.5 py-2 focus:ring-1 focus:ring-emerald-500 transition outline-none" />
+                  </div>
+                  <!-- C-Organik -->
+                  <div class="flex flex-col gap-1">
+                    <label for="sample-c-organik" class="text-[10px] font-extrabold text-slate-500 uppercase">C-Organik (%)</label>
+                    <input type="number" step="0.01" id="sample-c-organik" min="0" placeholder="Contoh: 2.1" class="w-full text-xs font-mono border border-slate-200 bg-white rounded-lg px-2.5 py-2 focus:ring-1 focus:ring-emerald-500 transition outline-none" />
                   </div>
                 </div>
               </div>
@@ -571,6 +1260,50 @@
                   <label class="flex items-center gap-2 cursor-pointer font-bold text-slate-800 hover:text-emerald-700 select-none">
                     <input type="checkbox" id="layer-control-cucumber" class="w-3.5 h-3.5 accent-emerald-600 rounded border-slate-350 focus:ring-emerald-500" />
                     <span>Zona Kesesuaian Mentimun</span>
+                  </label>
+                </div>
+
+                <!-- Section: Spatial Soil Fertility Mapping (New) -->
+                <div class="border-t border-slate-100 pt-2 flex flex-col gap-1.5 mt-1">
+                  <span class="font-bold text-slate-700 uppercase tracking-widest pb-0.5">PETA KESUBURAN SPASIAL</span>
+                  
+                  <!-- IDW vs Kriging selector -->
+                  <div class="flex items-center justify-between mb-1">
+                    <span class="font-bold text-slate-500 text-[8px] uppercase tracking-wider">Metode:</span>
+                    <div class="flex bg-slate-100 p-0.5 rounded-lg border border-slate-200 select-none">
+                      <button id="btn-algo-idw" class="px-2 py-0.5 rounded-md font-bold text-[8px] transition-all bg-white text-slate-800 shadow-3xs cursor-pointer active-algo" onclick="window.setFertilityAlgo('idw')">IDW</button>
+                      <button id="btn-algo-kriging" class="px-2 py-0.5 rounded-md font-bold text-[8px] transition-all text-slate-500 hover:text-slate-850 cursor-pointer" onclick="window.setFertilityAlgo('kriging')">Kriging</button>
+                    </div>
+                  </div>
+
+                  <label class="flex items-center gap-2 cursor-pointer font-bold text-slate-800 hover:text-emerald-700 select-none">
+                    <input type="checkbox" id="layer-control-fertility-ph" class="w-3.5 h-3.5 accent-emerald-600 rounded border-slate-350 focus:ring-emerald-500" />
+                    <span>Peta pH</span>
+                  </label>
+                  
+                  <label class="flex items-center gap-2 cursor-pointer font-bold text-slate-800 hover:text-emerald-700 select-none">
+                    <input type="checkbox" id="layer-control-fertility-n" class="w-3.5 h-3.5 accent-emerald-600 rounded border-slate-350 focus:ring-emerald-500" />
+                    <span>Peta Nitrogen</span>
+                  </label>
+                  
+                  <label class="flex items-center gap-2 cursor-pointer font-bold text-slate-800 hover:text-emerald-700 select-none">
+                    <input type="checkbox" id="layer-control-fertility-p" class="w-3.5 h-3.5 accent-emerald-600 rounded border-slate-350 focus:ring-emerald-500" />
+                    <span>Peta Fosfor</span>
+                  </label>
+                  
+                  <label class="flex items-center gap-2 cursor-pointer font-bold text-slate-800 hover:text-emerald-700 select-none">
+                    <input type="checkbox" id="layer-control-fertility-k" class="w-3.5 h-3.5 accent-emerald-600 rounded border-slate-350 focus:ring-emerald-500" />
+                    <span>Peta Kalium</span>
+                  </label>
+                  
+                  <label class="flex items-center gap-2 cursor-pointer font-bold text-slate-800 hover:text-emerald-700 select-none">
+                    <input type="checkbox" id="layer-control-fertility-c" class="w-3.5 h-3.5 accent-emerald-600 rounded border-slate-350 focus:ring-emerald-500" />
+                    <span>Peta C-Organik</span>
+                  </label>
+
+                  <label class="flex items-center gap-2 cursor-pointer font-bold text-slate-800 hover:text-emerald-700 select-none">
+                    <input type="checkbox" id="layer-control-fertility-sfi" class="w-3.5 h-3.5 checked:bg-violet-600 accent-violet-600 rounded border-slate-350 focus:ring-violet-500" />
+                    <span class="text-violet-900 font-black">Peta Soil Fertility Index (SFI)</span>
                   </label>
                 </div>
 
@@ -895,6 +1628,7 @@
                 <th class="px-6 py-3.5 text-center">Foto Lapangan</th>
                 <th class="px-6 py-3.5 text-center">Nilai pH</th>
                 <th class="px-6 py-3.5 text-center">Status Keasaman</th>
+                <th class="px-6 py-3.5 text-center">Nutrisi Lanjut</th>
                 <th class="px-6 py-3.5">Catatan/Rekomendasi</th>
                 <th class="px-6 py-3.5 text-center">Aksi Operasional</th>
               </tr>

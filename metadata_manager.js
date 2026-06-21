@@ -26,7 +26,8 @@ export function getDefaultMetadata() {
     instansi: '',
     lokasiPenelitian: '',
     komoditasUtama: '',
-    tahunPenelitian: new Date().getFullYear().toString()
+    tahunPenelitian: new Date().getFullYear().toString(),
+    luasLahan: 1.0
   };
 }
 
@@ -65,7 +66,8 @@ export function saveResearchMetadata(metadata) {
       instansi: String(metadata.instansi || '').trim(),
       lokasiPenelitian: String(metadata.lokasiPenelitian || '').trim(),
       komoditasUtama: String(metadata.komoditasUtama || '').trim(),
-      tahunPenelitian: String(metadata.tahunPenelitian || '').trim()
+      tahunPenelitian: String(metadata.tahunPenelitian || '').trim(),
+      luasLahan: Math.max(0.01, parseFloat(metadata.luasLahan) || 1.0)
     };
     localStorage.setItem(STORAGE_KEY, JSON.stringify(cleaned));
     return true;
