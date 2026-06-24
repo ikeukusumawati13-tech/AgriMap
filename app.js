@@ -2573,38 +2573,50 @@ function updateLimitingFactorsDashboard() {
   // Update sorted factors list
   if (listContainer) {
     listContainer.innerHTML = '';
-    result.factors.forEach((f, i) => {
-      let scoreBadgeColor = 'bg-slate-100 text-slate-700';
-      if (f.score <= 1) scoreBadgeColor = 'bg-red-50 text-red-600 border border-red-200/50';
-      else if (f.score === 2) scoreBadgeColor = 'bg-red-50/50 text-rose-500 border border-rose-200/40';
-      else if (f.score === 3) scoreBadgeColor = 'bg-amber-50 text-amber-700 border border-amber-200/50';
-      else if (f.score >= 4) scoreBadgeColor = 'bg-emerald-50 text-emerald-700 border border-emerald-200/50';
+    const rankingBlock = listContainer.parentElement;
 
-      const row = document.createElement('div');
-      row.className = "flex items-center justify-between p-3.5 rounded-xl border border-slate-100 bg-white/40 hover:bg-slate-50 transition duration-150";
-      row.innerHTML = `
-        <div class="flex items-center gap-3 min-w-0">
-          <span class="text-base shrink-0 select-none">${f.rankEmoji}</span>
-          <div class="min-w-0">
-            <h4 class="text-xs font-black text-slate-850 leading-none">${f.name}</h4>
-            <span class="text-[10px] text-slate-400 font-bold block mt-1 leading-none">Rata-rata: ${f.valStr}</span>
+    if (result.allParamsOptimal) {
+      if (rankingBlock) {
+        rankingBlock.style.display = 'none';
+      }
+    } else {
+      if (rankingBlock) {
+        rankingBlock.style.display = 'flex';
+      }
+
+      result.factors.forEach((f, i) => {
+        let scoreBadgeColor = 'bg-slate-100 text-slate-700';
+        if (f.score <= 1) scoreBadgeColor = 'bg-red-50 text-red-600 border border-red-200/50';
+        else if (f.score === 2) scoreBadgeColor = 'bg-red-50/50 text-rose-500 border border-rose-200/40';
+        else if (f.score === 3) scoreBadgeColor = 'bg-amber-50 text-amber-700 border border-amber-200/50';
+        else if (f.score >= 4) scoreBadgeColor = 'bg-emerald-50 text-emerald-700 border border-emerald-200/50';
+
+        const row = document.createElement('div');
+        row.className = "flex items-center justify-between p-3.5 rounded-xl border border-slate-100 bg-white/40 hover:bg-slate-50 transition duration-150";
+        row.innerHTML = `
+          <div class="flex items-center gap-3 min-w-0">
+            <span class="text-base shrink-0 select-none">${f.rankEmoji}</span>
+            <div class="min-w-0">
+              <h4 class="text-xs font-black text-slate-850 leading-none">${f.name}</h4>
+              <span class="text-[10px] text-slate-400 font-bold block mt-1 leading-none">Rata-rata: ${f.valStr}</span>
+            </div>
           </div>
-        </div>
-        <div class="flex items-center gap-2">
-          <span class="text-[9px] text-slate-400 font-extrabold uppercase">Nilai ${f.score}/5</span>
-          <span class="px-2 py-0.5 text-[9px] font-black rounded-md ${scoreBadgeColor}">${f.label}</span>
-        </div>
-      `;
-      listContainer.appendChild(row);
-    });
+          <div class="flex items-center gap-2">
+            <span class="text-[9px] text-slate-400 font-extrabold uppercase">Nilai ${f.score}/5</span>
+            <span class="px-2 py-0.5 text-[9px] font-black rounded-md ${scoreBadgeColor}">${f.label}</span>
+          </div>
+        `;
+        listContainer.appendChild(row);
+      });
+    }
   }
 
   // Update recommendations automatic list
   if (recContainer) {
     recContainer.innerHTML = '';
-    const criticalFactors = result.factors.filter(f => f.score < 4);
+    const criticalFactors = result.factors.filter(f => f.score < 3);
     
-    if (criticalFactors.length === 0) {
+    if (result.allParamsOptimal || criticalFactors.length === 0) {
       recContainer.innerHTML = `
         <div class="bg-emerald-50/20 p-4 rounded-xl border border-emerald-100 flex items-start gap-3">
           <span class="text-lg">🎉</span>

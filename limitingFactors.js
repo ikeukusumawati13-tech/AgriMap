@@ -225,7 +225,16 @@ export function analyzeLimitingFactors(samples) {
   const hasCritical = factorList.some(f => f.score === 2);
   const hasMild = factorList.some(f => f.score === 3);
 
-  if (hasHighlyCritical || hasCritical) {
+  const allParamsOptimal = !hasHighlyCritical && !hasCritical;
+
+  if (allParamsOptimal) {
+    landStatusCode = 'BAIK';
+    landStatusLabel = 'Tidak Ada Faktor Pembatas Utama';
+    landStatusColor = '#16a34a'; // emerald-600
+    landStatusBg = '#f0fdf4';
+    landStatusBorder = '#dcfce7';
+    landStatusDesc = 'Seluruh parameter hara tanah berada dalam kondisi optimal atau cukup memadai. Tidak ada kendala pembatas kritis pada lahan Anda.';
+  } else if (hasHighlyCritical || hasCritical) {
     landStatusCode = 'BERMASALAH';
     landStatusLabel = 'Bermasalah';
     landStatusColor = '#dc2626'; // red-600
@@ -271,6 +280,7 @@ export function analyzeLimitingFactors(samples) {
 
   return {
     factors: enrichedFactors,
+    allParamsOptimal: allParamsOptimal,
     landStatus: {
       code: landStatusCode,
       label: landStatusLabel,

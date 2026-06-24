@@ -147,30 +147,95 @@ export function getFertilizerRecommendation(ph, n, p, k, c) {
   const sortedElements = [...elements].sort((a, b) => a.score - b.score);
   const lowestParam = sortedElements[0];
 
+  const localGetPhScore = (val) => {
+    if (val === null || val === undefined || isNaN(val)) return 3;
+    const v = parseFloat(val);
+    if (v < 5.0) return 1;
+    if (v < 5.5) return 2;
+    if (v < 6.0) return 3;
+    if (v >= 6.0 && v <= 7.0) return 5;
+    if (v <= 8.0) return 4;
+    return 3;
+  };
+
+  const localGetNScore = (val) => {
+    if (val === null || val === undefined || isNaN(val)) return 3;
+    const v = parseFloat(val);
+    if (v < 0.10) return 1;
+    if (v <= 0.20) return 2;
+    if (v <= 0.50) return 3;
+    if (v <= 0.75) return 4;
+    return 5;
+  };
+
+  const localGetPScore = (val) => {
+    if (val === null || val === undefined || isNaN(val)) return 3;
+    const v = parseFloat(val);
+    if (v < 10.0) return 1;
+    if (v <= 20.0) return 2;
+    if (v <= 40.0) return 3;
+    if (v <= 60.0) return 4;
+    return 5;
+  };
+
+  const localGetKScore = (val) => {
+    if (val === null || val === undefined || isNaN(val)) return 3;
+    const v = parseFloat(val);
+    if (v < 50.0) return 1;
+    if (v <= 100.0) return 2;
+    if (v <= 200.0) return 3;
+    if (v <= 300.0) return 4;
+    return 5;
+  };
+
+  const localGetCScore = (val) => {
+    if (val === null || val === undefined || isNaN(val)) return 3;
+    const v = parseFloat(val);
+    if (v < 1.00) return 1;
+    if (v <= 2.00) return 2;
+    if (v <= 3.00) return 3;
+    if (v <= 5.00) return 4;
+    return 5;
+  };
+
+  const scorePhCategory = localGetPhScore(vPh);
+  const scoreNCategory = localGetNScore(vN);
+  const scorePCategory = localGetPScore(vP);
+  const scoreKCategory = localGetKScore(vK);
+  const scoreCCategory = localGetCScore(vC);
+
+  const allParamsOptimal = (scorePhCategory >= 3 && scoreNCategory >= 3 && scorePCategory >= 3 && scoreKCategory >= 3 && scoreCCategory >= 3);
+
   // 5. Determine primary limiting factor
   let primaryLimitText = '';
   let detailLimitDesc = '';
-  switch (lowestParam.name) {
-    case 'pH (Keasaman)':
-      primaryLimitText = 'Keasaman Ekstrem Tanah (pH masam)';
-      detailLimitDesc = 'Keasaman tanah mengunci ketersediaan unsur hara vital di dalam tanah. Unsur hara N, P, dan K menjadi tidak diserap oleh tanaman meskipun pupuk ditabur banyak.';
-      break;
-    case 'Nitrogen (N)':
-      primaryLimitText = 'Defisiensi Unsur Nitrogen Bebas';
-      detailLimitDesc = 'Rendahnya Nitrogen membatasi sintesis protein tanaman, menyebabkan daun menguning (klorosis), kerdil, dan metabolisme terhambat pada fase vegetatif.';
-      break;
-    case 'Fosfor (P)':
-      primaryLimitText = 'Keterikatan Rendah/Kekurangan Fosfor Aktif';
-      detailLimitDesc = 'Kurangnya Fosfor membatasi perkembangan struktur perakaran akar serabut, transfer energi seluler (ATP), dan inisiasi organ pembungaan.';
-      break;
-    case 'Kalium (K)':
-      primaryLimitText = 'Defisit Unsur Kalium Asimilasi';
-      detailLimitDesc = 'Ketiadaan Kalium menurunkan regulasi stomata, memperlemah turgor tanaman, serta mengurangi ketahanan dari hama, penyakit, dan dehidrasi kering.';
-      break;
-    case 'C-Organik':
-      primaryLimitText = 'Kandungan Bahan Organik Humus Rendah';
-      detailLimitDesc = 'Struktur fisik tanah padat, aktivitas biologis mikroba tanah mati, serta daya ikat kation pupuk rendah dikarenakan degradasi humus aktif.';
-      break;
+  
+  if (allParamsOptimal) {
+    primaryLimitText = 'Tidak Ada Faktor Pembatas Utama';
+    detailLimitDesc = 'Seluruh parameter hara tanah berada dalam kondisi optimal atau cukup memadai. Tidak ada kendala pembatas hara kritis pada lahan Anda.';
+  } else {
+    switch (lowestParam.name) {
+      case 'pH (Keasaman)':
+        primaryLimitText = 'Keasaman Ekstrem Tanah (pH masam)';
+        detailLimitDesc = 'Keasaman tanah mengunci ketersediaan unsur hara vital di dalam tanah. Unsur hara N, P, dan K menjadi tidak diserap oleh tanaman meskipun pupuk ditabur banyak.';
+        break;
+      case 'Nitrogen (N)':
+        primaryLimitText = 'Defisiensi Unsur Nitrogen Bebas';
+        detailLimitDesc = 'Rendahnya Nitrogen membatasi sintesis protein tanaman, menyebabkan daun menguning (klorosis), kerdil, dan metabolisme terhambat pada fase vegetatif.';
+        break;
+      case 'Fosfor (P)':
+        primaryLimitText = 'Keterikatan Rendah/Kekurangan Fosfor Aktif';
+        detailLimitDesc = 'Kurangnya Fosfor membatasi perkembangan struktur perakaran akar serabut, transfer energi seluler (ATP), dan inisiasi organ pembungaan.';
+        break;
+      case 'Kalium (K)':
+        primaryLimitText = 'Defisit Unsur Kalium Asimilasi';
+        detailLimitDesc = 'Ketiadaan Kalium menurunkan regulasi stomata, memperlemah turgor tanaman, serta mengurangi ketahanan dari hama, penyakit, dan dehidrasi kering.';
+        break;
+      case 'C-Organik':
+        primaryLimitText = 'Kandungan Bahan Organik Humus Rendah';
+        detailLimitDesc = 'Struktur fisik tanah padat, aktivitas biologis mikroba tanah mati, serta daya ikat kation pupuk rendah dikarenakan degradasi humus aktif.';
+        break;
+    }
   }
 
   // 6. Action items compilation list
@@ -204,7 +269,7 @@ export function getFertilizerRecommendation(ph, n, p, k, c) {
     step: actionsList.length + 1 + '',
     title: 'Aplikasi Urea & KCl Berkala (Pupuk Susulan)',
     sub: 'Pertumbuhan Vegetatif & Pengisian Buah',
-    desc: `Dosis Urea ${doseUrea.toFixed(0)} kg/Ha dan KCl ${doseKCl.toFixed(0)} kg/Ha dibagi dalam dua periode: Susulan I (10-15 HST) dan Susulan II (30-35 HST) dengan teknik tugal berjarak 5-10 cm dari pangkal batang.`
+    desc: `Dosis Urea ${doseUrea.toFixed(0)} kg/Ha dan KCl ${doseKCl.toFixed(0)} kg/Ha dibagi dalam dua periode: Susulan I (10-15 HST) dan Susulan II (30-35 HST) with teknik tugal berjarak 5-10 cm dari pangkal batang.`
   });
 
   return {
@@ -218,10 +283,10 @@ export function getFertilizerRecommendation(ph, n, p, k, c) {
       organik: { val: doseOrganik, unit: 'Ton/Ha', reason: reasonOrganik }
     },
     limitingFactor: {
-      name: lowestParam.name,
-      value: lowestParam.valStr,
-      label: lowestParam.label,
-      color: lowestParam.color,
+      name: allParamsOptimal ? 'Tidak Ada' : lowestParam.name,
+      value: allParamsOptimal ? '-' : lowestParam.valStr,
+      label: allParamsOptimal ? 'Optimal' : lowestParam.label,
+      color: allParamsOptimal ? '#16a34a' : lowestParam.color,
       title: primaryLimitText,
       desc: detailLimitDesc
     },
